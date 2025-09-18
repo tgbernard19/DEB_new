@@ -3,21 +3,19 @@ Temperature correction parameters
 """
 abstract type AbstractTemperatureCorrection{T} end
 
-# Temperature mixins
-@mix @columns struct Tbase{T}
-    # Field       | Default | Unit | Bounds          | Log | Description
-    reftemp::T    | 300.0   | K    | (273.0, 325.0)  | _   | "Reference temperature for all rate parameters"
-    arrtemp::T    | 2000.0  | K    | (200.0, 4000.0) | _   | "Arrhenius temperature"
+@kwdef struct TempCorrBase{T}
+    reftemp::T = 300.0u"K"
+    arrtemp::T = 2000.0u"K"
 end
 
-@mix @columns struct Tlow{T}
-    tbelow::T     | -30.0   | K | (0.0, -40.0)       | _ | "Lower boundary of tolerance range"
-    arrlower::T   | 20000.0 | K | (2000.0, 40000.0)  | _ | "Arrhenius temperature for lower boundary"
+@kwdef struct TempCorrLowerParams{T}
+    tbelow::T = -30.0u"K"
+    arrlower::T = 20000.0u"K"
 end
 
-@mix @columns struct Tup{T}
-    tabove::T     | 5.0     | K | (0.0, 20)          | _ | "Upper boundary of tolerance range"
-    arrupper::T   | 70000.0 | K | (7000.0, 140000.0) | _ | "Arrhenius temperature for upper boundary"
+@kwdef struct TempCorrUpperParams{T}
+    tabove::T = 5.0u"K"
+    arrupper::T = 70000.0u"K"
 end
 
 """
@@ -38,7 +36,14 @@ Simple temperature correction parameters
 
 $(FIELDDOCTABLE)
 """
-@Tbase struct TempCorr{T} <: AbstractTemperatureCorrection{T} end
+struct TempCorr{T} <: AbstractTemperatureCorrection{T}
+    reftemp::T
+    arrtemp::T
+    function TempCorr(; reftemp=300.0u"K", arrtemp=2000.0u"K")
+        p = TempCorrBase(; reftemp, arrtemp)
+        return new{typeof(p.reftemp)}(p.reftemp, p.arrtemp)
+    end
+end
 
 tempcorr(f::TempCorr, t) = tempcorr(t |> K, f.reftemp, f.arrtemp)
 
@@ -49,7 +54,17 @@ Temperature correction with lower bounds parameters.
 
 $(FIELDDOCTABLE)
 """
-@Tbase @Tlow struct TempCorrLower{T} <: AbstractTemperatureCorrection{T} end
+struct TempCorrLower{T} <: AbstractTemperatureCorrection{T}
+    reftemp::T
+    arrtemp::T
+    tbelow::T
+    arrlower::T
+    function TempCorrLower(; reftemp=300.0u"K", arrtemp=2000.0u"K", tbelow=-30.0u"K", arrlower=20000.0u"K")
+        base = TempCorrBase(; reftemp, arrtemp)
+        low = TempCorrLowerParams(; tbelow, arrlower)
+        return new{typeof(base.reftemp)}(base.reftemp, base.arrtemp, low.tbelow, low.arrlower)
+    end
+end
 
 tempcorr(f::TempCorrLower, t) =
     tempcorr(t |> K, f.reftemp, f.arrtemp, f.tbelow + f.reftemp, f.arrlower)
@@ -61,7 +76,21 @@ Temperature correction with lower and upper bound parameters.
 
 $(FIELDDOCTABLE)
 """
-@Tbase @Tlow @Tup struct TempCorrLowerUpper{T} <: AbstractTemperatureCorrection{T} end
+struct TempCorrLowerUpper{T} <: AbstractTemperatureCorrection{T}
+    reftemp::T
+    arrtemp::T
+    tbelow::T
+    arrlower::T
+    tabove::T
+    arrupper::T
+    function TempCorrLowerUpper(; reftemp=300.0u"K", arrtemp=2000.0u"K", tbelow=-30.0u"K", arrlower=20000.0u"K",
+            tabove=5.0u"K", arrupper=70000.0u"K")
+        base = TempCorrBase(; reftemp, arrtemp)
+        low = TempCorrLowerParams(; tbelow, arrlower)
+        up = TempCorrUpperParams(; tabove, arrupper)
+        return new{typeof(base.reftemp)}(base.reftemp, base.arrtemp, low.tbelow, low.arrlower, up.tabove, up.arrupper)
+    end
+end
 
 tempcorr(f::TempCorrLowerUpper, t) =
     tempcorr(t |> K, f.reftemp, f.arrtemp, f.tbelow + f.reftemp, f.arrlower, f.tabove + f.reftemp, f.arrupper)
@@ -82,20 +111,21 @@ and a simpler formulation is more applicable.
 
 $(FIELDDOCTABLE)
 """
-@flattenable @columns struct ParentTardieu{Δ,Al,T,A} <: AbstractTemperatureCorrection{T}
-    ΔH_A::Δ | true  | 63.5  | kJ*mol^-1 | (55.0, 65.0)   | _ | "The enthalpy of activation of the reaction. Determines the curvature at low temperature"
-    α::Al   | true  | 3.5   | _         | (1.0, 10.0)    | _ | "The ratio ΔH_D / ΔH_A"
-    t0::T   | true  | 300.0 | K         | (273.0, 325.0) | _ | "Reference temperature"
-    A::A    | false | 0.0   | K^-1      | (0.0, 1.0)     | _ | "Trait scaling coefficient, calculated from other params"
-end          
-# Allways recalculate A
-ParentTardieu(ΔH_A, α, t0, A) = ParentTardieu(ΔH_A, α, t0)
-# Precalculate scalar A using the reference temperature
-# to normalise the temperature response with the reference at 1.0
-ParentTardieu(ΔH_A, α, t0) = begin
-    A = 1 / parent_tardieua_unscaled(ΔH_A, α, t0, t0)
-    ParentTardieu{typeof.((ΔH_A, α, t0, A))...}(ΔH_A, α, t0, A)
+struct ParentTardieu{TΔ,Tα,TT,TA} <: AbstractTemperatureCorrection{TT}
+    ΔH_A::TΔ
+    α::Tα
+    t0::TT
+    A::TA
 end
+
+ParentTardieu(ΔH_A, α, t0, A) = ParentTardieu{typeof.((ΔH_A, α, t0, A))...}(ΔH_A, α, t0, A)
+
+function ParentTardieu(; ΔH_A=63.5u"kJ/mol", α=3.5, t0=300.0u"K", A=nothing)
+    Aval = A === nothing ? 1 / parent_tardieua_unscaled(ΔH_A, α, t0, t0) : A
+    return ParentTardieu(ΔH_A, α, t0, Aval)
+end
+
+ParentTardieu(ΔH_A=63.5u"kJ/mol", α=3.5, t0=300.0u"K") = ParentTardieu(; ΔH_A, α, t0)
 
 parent_tardieua_unscaled(ΔH_A, α, t0, t) = begin
     ex = exp(-ΔH_A / (R * t))

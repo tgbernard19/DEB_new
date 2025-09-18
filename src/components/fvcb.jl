@@ -6,10 +6,10 @@ export KooijmanWaterPotentialPhotosynthesis
 
 abstract type AbstractFvCBCAssim <: AbstractCAssim end
 
-@mix @flattenable @columns struct MixinFvCB{P,V,MG}
-    vars::V        | false | Photosynthesis.EmaxVars() | _ | _ | _ | _
-    photoparams::P | true  | nothing | _         | _           | _ | _
-    SLA::MG        | true  | 24.0    | m^2*kg^-1 | (5.0, 30.0) | _ | "Specific leaf Area. Ferns: 17.4, Forbs: 26.2, Graminoids: 24.0, Shrubs: 9.10, Trees: 8.30"
+@kwdef struct FvCBParams{TV,TP,TS}
+    vars::TV = Photosynthesis.EmaxVars()
+    photoparams::TP = nothing
+    SLA::TS = 24.0
 end
 
 """
@@ -21,17 +21,23 @@ Requires Photosynthesis.jl.
 
 $(FIELDDOCTABLE)
 """
-@MixinFvCB struct BallBerryCAssim{} <: AbstractFvCBCAssim end
+function default_ballberry_photoparams()
+    Photosynthesis.FvCBEnergyBalance(
+        photosynthesis=Photosynthesis.FvCBPhotosynthesis(
+            stomatal_conductance=Photosynthesis.BallBerryStomatalConductance(
+                soilmethod = Photosynthesis.PotentialSoilMethod()),
+            flux=Photosynthesis.Flux(),
+        ),
+    )
+end
 
-@default BallBerryCAssim begin
-    vars        | Photosynthesis.EmaxVars()
-    photoparams | Photosynthesis.FvCBEnergyBalance(
-                      photosynthesis=FvCBPhotosynthesis(
-                          stomatal_conductance=BallBerryStomatalConductance(
-                              soilmethod = PotentialSoilMethod()
-                          ),
-                          flux=Flux(),
-                         ))
+struct BallBerryCAssim{TV,TP,TS} <: AbstractFvCBCAssim
+    vars::TV
+    photoparams::TP
+    SLA::TS
+    function BallBerryCAssim(; vars=Photosynthesis.EmaxVars(), photoparams=default_ballberry_photoparams(), SLA=24.0)
+        return new{typeof(vars), typeof(photoparams), typeof(SLA)}(vars, photoparams, SLA)
+    end
 end
 
 """
@@ -44,18 +50,23 @@ Requires Photosynthesis.jl.
 
 $(FIELDDOCTABLE)
 """
-@MixinFvCB struct BallBerryPotentialCAssim{} <: AbstractFvCBCAssim end
+function default_ballberry_potential_photoparams()
+    Photosynthesis.FvCBEnergyBalance(
+        photosynthesis=Photosynthesis.FvCBPhotosynthesis(
+            stomatal_conductance=Photosynthesis.BallBerryStomatalConductance(
+                soilmethod = Photosynthesis.PotentialSoilMethod()),
+            flux=Photosynthesis.PotentialModifiedFlux(),
+        ),
+    )
+end
 
-@default BallBerryPotentialCAssim begin
-    vars        | Photosynthesis.EmaxVars()
-    photoparams | Photosynthesis.FvCBEnergyBalance(
-                      photosynthesis=FvCBPhotosynthesis(
-                          stomatal_conductance=BallBerryStomatalConductance(
-                              soilmethod = PotentialSoilMethod()
-                          ),
-                          flux=PotentialModifiedFlux(),
-                      ))
-
+struct BallBerryPotentialCAssim{TV,TP,TS} <: AbstractFvCBCAssim
+    vars::TV
+    photoparams::TP
+    SLA::TS
+    function BallBerryPotentialCAssim(; vars=Photosynthesis.EmaxVars(), photoparams=default_ballberry_potential_photoparams(), SLA=24.0)
+        return new{typeof(vars), typeof(photoparams), typeof(SLA)}(vars, photoparams, SLA)
+    end
 end
 
 photosynthesis(f::AbstractFvCBCAssim, o, u) = f.vars.aleaf * f.SLA * w_V(o)
@@ -96,8 +107,25 @@ Requires Photosynthesis.jl. Untested and experimental.
 
 $(FIELDDOCTABLE)
 """
-@MixinKooijmanPhoto struct KooijmanWaterPotentialPhotosynthesis{PL} <: AbstractKooijmanPhoto
-    potential_modifier::PL | Photosynthesis.ZhouPotentialDependence() | _ | _ | _ | _ | "Modify photosynthesis with a water potential model"
+struct KooijmanWaterPotentialPhotosynthesis{TV,TB,TC,TO,TJ,TA,TCM,TOM,TS,TP} <: AbstractKooijmanPhoto
+    vars::TV
+    k_C_binding::TB
+    k_O_binding::TB
+    K_C::TC
+    K_O::TO
+    J_L_K::TJ
+    j_L_Amax::TA
+    j_C_Amax::TCM
+    j_O_Amax::TOM
+    SLA::TS
+    potential_modifier::TP
+    function KooijmanWaterPotentialPhotosynthesis(; potential_modifier=Photosynthesis.ZhouPotentialDependence(), kwargs...)
+        base = KooijmanPhotoParams(; kwargs...)
+        return new{typeof(base.vars), typeof(base.k_C_binding), typeof(base.K_C), typeof(base.K_O), typeof(base.J_L_K),
+                   typeof(base.j_L_Amax), typeof(base.j_C_Amax), typeof(base.j_O_Amax), typeof(base.SLA), typeof(potential_modifier)}(
+            base.vars, base.k_C_binding, base.k_O_binding, base.K_C, base.K_O, base.J_L_K,
+            base.j_L_Amax, base.j_C_Amax, base.j_O_Amax, base.SLA, potential_modifier)
+    end
 end
 
 photosynthesis(f::KooijmanWaterPotentialPhotosynthesis, o, u) = begin
