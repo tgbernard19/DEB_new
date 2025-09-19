@@ -44,9 +44,9 @@ end
 
 $(FIELDDOCTABLE)
 """
-@columns struct CatabolismCN{KC,KN} <: AbstractCatabolismCN 
-    kC::KC | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "C-reserve turnover rate"
-    kN::KN | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "N-reserve turnover rate"
+@kwdef struct CatabolismCN{TKC,TKN} <: AbstractCatabolismCN
+    kC::TKC = 0.2
+    kN::TKN = 0.2
 end
 
 """
@@ -56,8 +56,8 @@ end
 
 $(FIELDDOCTABLE)
 """
-@columns struct CatabolismCNshared{K} <: AbstractCatabolismCN 
-    k::K  | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "Reserve turnover rate"
+@kwdef struct CatabolismCNshared{TK} <: AbstractCatabolismCN
+    k::TK = 0.2
 end
 
 kC(p::CatabolismCNshared) = p.k
@@ -96,9 +96,9 @@ end
 
 $(FIELDDOCTABLE)
 """
-@columns struct CatabolismCNE{KE,KC,KN} <: AbstractCatabolismCNE
-    k::KE  | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "Reserve turnover rate"
-    kC::KC | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "C-reserve turnover rate"
-    kN::KN | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "N-reserve turnover rate"
+@kwdef struct CatabolismCNE{TK,TC,TN} <: AbstractCatabolismCNE
+    k::TK = 0.2
+    kC::TC = 0.2
+    kN::TN = 0.2
 end
 
