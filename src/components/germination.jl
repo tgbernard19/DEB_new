@@ -13,9 +13,8 @@ This causes a hard switch in behaviour between
 
 $(FIELDDOCTABLE)
 """
-@columns struct ThresholdGermination{Mo} <: AbstractGermination
-    # Field              | Def  | Unit | Bounds      | Log  | Description
-    germination_mass::Mo | 1e-5 | mol  | (1e-10,5.0) | true | "Structural mass at germination"
+@kwdef struct ThresholdGermination{TM} <: AbstractGermination
+    germination_mass::TM = 1e-5
 end
 
 """

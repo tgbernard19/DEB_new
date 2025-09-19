@@ -7,18 +7,14 @@ Core DEB model parameters.
 
 $(FIELDDOCTABLE)
 """
-@columns struct DEBCore{MoMoD,MoMo,GMo} <: AbstractDEBCore
-    # Field        | Default | Unit            | Bounds       | Log   | Description
-    j_E_mai::MoMoD | 0.01    | mol*mol^-1*d^-1 | (1e-4, 1.0)  | true  | "Specific somatic maintenance costs"
-    y_V_E::MoMo    | 0.7     | _               | (0.0, 1.0)   | _     | "Yield from reserve to structure"
-    y_E_C::MoMo    | 0.7     | _               | (1e-6, 1.0)  | false | "Yield from C-reserve to general reserve"
-    y_E_N::MoMo    | 30.0    | _               | (1.0, 50.0)  | false | "Yield from N-reserve to general reserve"
-    n_N_V::MoMo    | 0.03    | _               | (0.0, 0.1)   | _     | "Nitrogen per Carbon in structure"
-    n_N_E::MoMo    | 0.025   | _               | (0.0, 0.1)   | _     | "Nitrogen per Carbon in reserve"
-    w_V::GMo       | 25.0    | g*mol^-1        | (15.0, 40.0) | _     | "Mol-weight of shoot structure"
-    # w_N::GMo     | 25.0    | g*mol^-1        | (15.0, 40.0) | _     | "Mol-weight of shoot N-reserve"
-    # w_C::GMo     | 25.0    | g*mol^-1        | (12.0, 40.0) | _     | "Mol-weight of shoot C-reserve"
-    # w_E::GMo     | 25.0    | g*mol^-1        | (15.0, 40.0) | _     | "Mol-weight of shoot reserve"
+@kwdef struct DEBCore{TJ,TY,TY2,TN,TW} <: AbstractDEBCore
+    j_E_mai::TJ = 0.01
+    y_V_E::TY = 0.7
+    y_E_C::TY2 = 0.7
+    y_E_N::TY2 = 30.0
+    n_N_V::TN = 0.03
+    n_N_E::TN = 0.025
+    w_V::TW = 25.0
 end
 
 for fn in fieldnames(DEBCore)

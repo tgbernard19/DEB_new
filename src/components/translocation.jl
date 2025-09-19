@@ -20,10 +20,9 @@ reserve, but with some fraction of loss specified by yield parameters.
 
 $(FIELDDOCTABLE)
 """
-@columns struct DissipativePassiveTranslocation{MoMo} <: PassiveTranslocation
-#   Field          | Default | Unit       | Bounds     | Log | Description
-    y_EC_ECT::MoMo | 1.0     | mol*mol^-1 | (0.0, 1.0) | _   | "yield of translocated C-reserve"
-    y_EN_ENT::MoMo | 1.0     | mol*mol^-1 | (0.0, 1.0) | _   | "yield of Translocated N-reserve"
+@kwdef struct DissipativePassiveTranslocation{TY} <: PassiveTranslocation
+    y_EC_ECT::TY = 1.0
+    y_EN_ENT::TY = 1.0
 end
 
 passive_translocation!(f::DissipativePassiveTranslocation, source, dest) = begin
@@ -56,11 +55,6 @@ end
 
 abstract type ActiveTranslocation end
 
-@mix @flattenable @columns struct Active{F}
-#   Field          | Flat | Default  | Unit       | Bounds    | Log | Description
-    κtra::F        | true | 0.6      | _          | (0.0,1.0) | _   | "Reserve flux allocated to translocation"
-end
-
 κtra(activetrans_pars::ActiveTranslocation) = activetrans_pars.κtra
 
 """
@@ -81,9 +75,15 @@ Translocation with dissipative losses to the environment.
 
 $(FIELDDOCTABLE)
 """
-@Active struct DissipativeActiveTranslocation{MoMo} <: ActiveTranslocation
-    y_E_ET::MoMo   | true | 0.8      | mol*mol^-1 | (0.0,1.0) | _   | "yield of translocated reserve:"
+struct DissipativeActiveTranslocation{Tκ,TY} <: ActiveTranslocation
+    κtra::Tκ
+    y_E_ET::TY
+    function DissipativeActiveTranslocation(; κtra=0.6, y_E_ET=0.8)
+        return new{typeof(κtra), typeof(y_E_ET)}(κtra, y_E_ET)
+    end
 end
+
+y_E_ET(p::DissipativeActiveTranslocation) = p.y_E_ET
 
 active_translocation!(p::DissipativeActiveTranslocation, o1, o2) = begin
     # outgoing translocation
@@ -105,7 +105,12 @@ Perfect translocation between structures.
 
 $(FIELDDOCTABLE)
 """
-@Active struct LosslessActiveTranslocation{} <: ActiveTranslocation end
+struct LosslessActiveTranslocation{Tκ} <: ActiveTranslocation
+    κtra::Tκ
+    function LosslessActiveTranslocation(; κtra=0.6)
+        return new{typeof(κtra)}(κtra)
+    end
+end
 
 active_translocation!(p::LosslessActiveTranslocation, o1, o2) = begin
     # outgoing translocation

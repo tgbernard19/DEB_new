@@ -46,8 +46,8 @@ and `ParallelComplementarySU` can be approximated with this rule.
 
 $(FIELDDOCTABLE)
 """
-@columns struct KfamilySU{K} <: AbstractSynthesizingUnit 
-    k::K | 1.0 | _ | (0.0, 10.0)  | _ | "Synthesizing unit parameter. Effiency = 2^-1/k"
+@kwdef struct KfamilySU{TK} <: AbstractSynthesizingUnit
+    k::TK = 1.0
 end
 
 synthesizing_unit(f::KfamilySU, v, w) = (v^-f.k + w^-f.k)^(-1/f.k)
