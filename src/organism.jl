@@ -8,16 +8,15 @@ abstract type AbstractParams end
 """
 Model parameters that vary between organs
 """
-@default_kw @flattenable @selectable struct Params{As,Sh,Al,Ma,Tr,Re,Ge,Pr} <: AbstractParams
-    # Field               | Default                    | _     | Selectable Types
-    assimilation_pars::As | ConstantCAssim()           | _     | Union{Nothing,AbstractAssim}
-    scaling_pars::Sh      | nothing                    | _     | Union{Nothing,AbstractScaling}
-    allometry_pars::Al    | nothing                    | _     | Union{Nothing,AbstractAllometry}
-    maturity_pars::Ma     | nothing                    | _     | Union{Nothing,AbstractMaturity}
-    activetrans_pars::Tr  | nothing                    | _     | Union{Nothing,ActiveTranslocation}
-    passivetrans_pars::Re | LosslessPassiveTranslocation() | _ | PassiveTranslocation
-    germination_pars::Ge  | nothing                    | _     | Union{Nothing,AbstractGermination}
-    production_pars::Pr   | nothing                    | _     | Union{Nothing,AbstractProduction}
+@kwdef struct Params{As,Sh,Al,Ma,Tr,Re,Ge,Pr} <: AbstractParams
+    assimilation_pars::As = ConstantCAssim()
+    scaling_pars::Sh = nothing
+    allometry_pars::Al = nothing
+    maturity_pars::Ma = nothing
+    activetrans_pars::Tr = nothing
+    passivetrans_pars::Re = LosslessPassiveTranslocation()
+    germination_pars::Ge = nothing
+    production_pars::Pr = nothing
 end
 
 for fn in fieldnames(Params)
@@ -41,13 +40,12 @@ Model parameters shared between organs.
 - `@selectable` provides the set of types that can be used for the parameter,
   so that they can be selected in a live interface.
 """
-@default_kw @selectable struct SharedParams{SU,Co,Fe,Te,Ca} <: AbstractSharedParams
-    # Field               | Default                   | Selectable Types
-    su_pars::SU           | ParallelComplementarySU() | AbstractSynthesizingUnit
-    core_pars::Co         | DEBCore()                 | _
-    resorption_pars::Fe   | nothing                   | Union{Nothing,AbstractResorption}
-    tempcorr_pars::Te     | nothing                   | Union{Nothing,AbstractTemperatureCorrection}
-    catabolism_pars::Ca   | CatabolismCN()            | AbstractCatabolism
+@kwdef struct SharedParams{SU,Co,Fe,Te,Ca} <: AbstractSharedParams
+    su_pars::SU = ParallelComplementarySU()
+    core_pars::Co = DEBCore()
+    resorption_pars::Fe = nothing
+    tempcorr_pars::Te = nothing
+    catabolism_pars::Ca = CatabolismCN()
 end
 
 for fn in fieldnames(SharedParams)
@@ -70,17 +68,17 @@ abstract type AbstractVars end
 Plottable model variables. These are vectors witih values for each time-step,
 to allow plotting and model introspection.
 """
-@udefault_kw @units @plottable struct PlottableVars{F,R,E,T,WP,H,TS} <: AbstractVars
-    scaling::F        | [0.0] | _                 | _
-    rate::R           | [0.0] | mol*mol^-1*d^-1   | _
-    E_ctb::E          | [0.0] | mol/hr            | _
-    θE::F             | [0.0] | _                 | _
-    temp::T           | [0.0] | K                 | _
-    tempcorrection::F | [0.0] | _                 | _
-    swp::WP           | [0.0] | kPa               | _
-    soilcorrection::F | [0.0] | _                 | _
-    height::H         | [0.0] | m                 | _
-    tstep::TS         | [1]   | _                 | false
+@kwdef mutable struct PlottableVars{TF,TR,TE,TΘ,TT,TTC,TWP,TS,TH,TI} <: AbstractVars
+    scaling::TF = [0.0]
+    rate::TR = [0.0]
+    E_ctb::TE = [0.0]
+    θE::TΘ = [0.0]
+    temp::TT = [0.0]
+    tempcorrection::TTC = [0.0]
+    swp::TWP = [0.0]
+    soilcorrection::TS = [0.0]
+    height::TH = [0.0]
+    tstep::TI = [1]
 end
 
 
@@ -90,16 +88,16 @@ end
 Mutable struct to allow storing variables
 for use by multiple components.
 """
-@udefault_kw @units mutable struct Vars{F,R,E,T,WP,H} <: AbstractVars
-    scaling::F        | 0.0   | _
-    rate::R           | 0.0   | mol*mol^-1*d^-1
-    θE::F             | 0.0   | _
-    E_ctb::E          | 0.0   | mol/hr          
-    temp::T           | 0.0   | K
-    tempcorrection::F | 0.0   | _
-    swp::WP           | 0.0   | kPa
-    soilcorrection::F | 0.0   | _
-    height::H         | 0.0   | m
+@kwdef mutable struct Vars{TF,TR,TE,TΘ,TT,TTC,TWP,TS,TH} <: AbstractVars
+    scaling::TF = 0.0
+    rate::TR = 0.0
+    θE::TΘ = 0.0
+    E_ctb::TE = 0.0
+    temp::TT = 0.0
+    tempcorrection::TTC = 0.0
+    swp::TWP = 0.0
+    soilcorrection::TS = 0.0
+    height::TH = 0.0
 end
 
 tstep(v::PlottableVars) = v.tstep[1]
@@ -207,9 +205,9 @@ end
 # timestep for plotting if PlottableVars are used.
 abstract type AbstractRecords end
 
-@plottable struct PlottableRecords{V,F} <: AbstractRecords
-    vars::V | true
-    J::F    | false
+struct PlottableRecords{V,F} <: AbstractRecords
+    vars::V
+    J::F
 end
 PlottableRecords(vars::PlottableVars, J::AbstractArray) =
     PlottableRecords{map(typeof,(vars,J))...}(vars, J)
@@ -219,9 +217,9 @@ PlottableRecords(vars::PlottableVars, fluxval::Number, fluxaxes::Tuple, tspan::A
     PlottableRecords(vars, J)
 end
 
-@plottable struct Records{V,F} <: AbstractRecords
-    vars::V | false
-    J::F    | false
+struct Records{V,F} <: AbstractRecords
+    vars::V
+    J::F
 end
 Records(vars::Vars, J::AbstractArray) =
     Records{map(typeof,(vars,J))...}(vars, J)
@@ -231,14 +229,14 @@ Records(vars::Vars, fluxval::Number, fluxaxes::Tuple) = begin
 end
 
 build_flux(fluxval, x::Tuple, y::Tuple) = begin
-    dims = X(Val(x)), Y(Val(y))
-    A = zeros(typeof(fluxval), map(length, dims)...)
-    DimensionalArray(A, dims)
+    dims = (X(Val(x)), Y(Val(y)))
+    A = zeros(typeof(fluxval), length(x), length(y))
+    DimArray(A, dims)
 end
 build_flux(fluxval, x::Tuple, y::Tuple, time::AbstractRange) = begin
-    dims = X(Val(x)), Y(Val(y)), Ti(time)
-    A = zeros(typeof(fluxval), map(length, dims)...)
-    DimensionalArray(A, dims)
+    dims = (X(Val(x)), Y(Val(y)), Ti(time))
+    A = zeros(typeof(fluxval), length(x), length(y), length(time))
+    DimArray(A, dims)
 end
 
 
@@ -342,19 +340,26 @@ are used, their state label needs to be passed in:
 transformations=(:asi, :gro, :mai, :mat, :rej, :tra, :res),
 ```
 """
-@flattenable @description mutable struct Plant{P,S,R,O,E,ES,D} <: AbstractOrganism
-    params::P             | true  | "Model parameters"
-    shared::S             | true  | "Parameters shared between organs"
-    records::R            | false | "Plotable variables stored in arrays and sliced for each timestep on demand"
-    organs::O             | false | ""
-    environment::E        | false | "Environment object, provides environmental variables for each timestep"
-    environment_start::ES | false | "Start index of environmental data"
-    dead::D               | false | "`Bool` flag: has the plant died"
-    Plant(params::P, shared::S, records::R, organs::O, environment::E, environment_start::ES, dead::D) where {P,S,R,O,E,ES,D} = begin
-        organs = define_organs(params, shared, records, 0)
-        new{P,S,R,typeof(organs),E,ES,D}(params, shared, records, organs, environment, environment_start, dead)
-    end
+mutable struct Plant{P,S,R,O,E,ES,D} <: AbstractOrganism
+    params::P
+    shared::S
+    records::R
+    organs::O
+    environment::E
+    environment_start::ES
+    dead::D
 end
+
+function Plant(params::P, shared::S, records::R, organs::O, environment::E, environment_start::ES, dead::D) where {P,S,R,O,E,ES,D}
+    Plant{P,S,R,O,E,ES,D}(params, shared, records, organs, environment, environment_start, dead)
+end
+
+function Plant(params::P, shared::S, records::R, ::Nothing, environment::E, environment_start::ES, dead::D) where {P,S,R,E,ES,D}
+    organs = define_organs(params, shared, records, 0)
+    Plant(params, shared, records, organs, environment, environment_start, dead)
+end
+
+
 Plant(; states=(:V, :C, :N),
         transformations=(:asi, :gro, :mai, :rej, :tra, :res),
         params=(

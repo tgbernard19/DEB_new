@@ -5,13 +5,12 @@ abstract type AbstractProduction end
 
 $(FIELDDOCTABLE)
 """
-@columns struct Production{MoMo,MoMoD,GMo} <: AbstractProduction
-    # Field        | Default | Unit            | Bounds       | Log | Description
-    y_P_V::MoMo    | 0.02    | mol*mol^-1      | (0.0,1.0)    | _   | "Product formation linked to growth"
-    j_P_mai::MoMoD | 0.001   | mol*mol^-1*d^-1 | (0.0,0.1)    | _   | "Product formation linked to maintenance"
-    n_N_P::MoMo    | 0.1     | mol*mol^-1      | (0.0, 1.0)   | _   | "N/C in product (wood)"
-    w_P::GMo       | 25.0    | g*mol^-1        | (10.0, 40.0) | _   | "Mol-weight of shoot product (wood)"
-end                                                                                        
+@kwdef struct Production{TY,TJ,TN,TW} <: AbstractProduction
+    y_P_V::TY = 0.02
+    j_P_mai::TJ = 0.001
+    n_N_P::TN = 0.1
+    w_P::TW = 25.0
+end
 
 for fn in fieldnames(Production)
     @eval $fn(p::Production) = p.$fn
