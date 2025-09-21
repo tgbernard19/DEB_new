@@ -13,7 +13,7 @@ using ConstructionBase,
       Unitful
 
 using Unitful: °C, K, Pa, kPa, MPa, J, kJ, W, L, g, kg, cm, m, s, hr, d, mol, mmol, μmol, σ, R
-using Base: @kwdef, tail
+using Base: @kwdef, tail, signbit
 
 export AbstractAssim,
        AbstractNAssim, NH4_NO3Assim, NAssim, ConstantNAssim,

@@ -34,25 +34,85 @@ function _secant_root(f, x0, x1; atol, maxiters)
     return xcurr, DEAD
 end
 
+function _bisection_root(f, lo, hi; atol, maxiters)
+    flo = f(lo)
+    fhi = f(hi)
+
+    if iszero(flo)
+        return lo, ALIVE
+    elseif iszero(fhi)
+        return hi, ALIVE
+    end
+
+    if signbit(flo) == signbit(fhi)
+        return hi, DEAD
+    end
+
+    local mid, fmid
+    for _ in 1:maxiters
+        mid = (lo + hi) / 2
+        if abs(hi - lo) <= atol
+            return mid, ALIVE
+        end
+
+        fmid = f(mid)
+        if iszero(fmid)
+            return mid, ALIVE
+        end
+
+        if signbit(fmid) == signbit(flo)
+            lo, flo = mid, fmid
+        else
+            hi, fhi = mid, fmid
+        end
+    end
+
+    return mid, DEAD
+end
+
 function calc_rate(su, rel_reserve::Tuple, turnover::Tuple,
                    j_E_mai, y_E_Ea, y_E_Eb, y_V_E, κsoma, tstep)
     # Find the type of `rate` so that diff and units work with atol etc
     one_r = oneunit(eltype(turnover))
     # Get rate with a zero finder
-    r, state = let turnover=turnover, j_E_mai=j_E_mai, y_E_Ea=y_E_Ea, y_E_Eb=y_E_Eb, y_V_E=y_V_E, κsoma=κsoma
-        atol = one_r * 1e-10; maxiters = 200
-        _secant_root(-2one_r, 1one_r; atol=atol, maxiters=maxiters) do r
-            rate_formula(r, su, rel_reserve, turnover, j_E_mai, y_E_Ea, y_E_Eb, y_V_E, κsoma)
+    solver = let turnover=turnover, j_E_mai=j_E_mai, y_E_Ea=y_E_Ea, y_E_Eb=y_E_Eb, y_V_E=y_V_E, κsoma=κsoma
+        atol = one_r * 1e-10
+        maxiters = 200
+        f(r) = rate_formula(r, su, rel_reserve, turnover, j_E_mai, y_E_Ea, y_E_Eb, y_V_E, κsoma)
+
+        attempts = (
+            (-2one_r, 1one_r),
+            (zero(one_r), max(maximum(turnover), one_r))
+        )
+
+        for (x0, x1) in attempts
+            r, state = _secant_root(f, x0, x1; atol=atol, maxiters=maxiters)
+            if state == ALIVE && r >= zero(r)
+                return r, ALIVE
+            end
         end
+
+        lo = zero(one_r)
+        hi = maximum(turnover)
+        if hi > lo
+            r, state = _bisection_root(f, lo, hi; atol=atol, maxiters=maxiters)
+            if state == ALIVE && r >= zero(r)
+                return r, ALIVE
+            end
+        end
+
+        zero(one_r), DEAD
     end
+
+    r, state = solver
 
     if state == DEAD
         @warn "Root for rate not found at t = $tstep"
-        return zero(r), DEAD
-    elseif r < zero(r) 
+        return r, DEAD
+    elseif r < zero(r)
         @warn "Rate is less than zero at t = $tstep"
         return zero(r), DEAD
-    else 
+    else
         return r, ALIVE
     end
 end

@@ -70,17 +70,17 @@ abstract type AbstractVars end
 Plottable model variables. These are vectors witih values for each time-step,
 to allow plotting and model introspection.
 """
-@kwdef mutable struct PlottableVars{TF,TR,TE,TΘ,TT,TTC,TWP,TS,TH,TI} <: AbstractVars
-    scaling::TF = [0.0]
-    rate::TR = [0.0]
-    E_ctb::TE = [0.0]
-    θE::TΘ = [0.0]
-    temp::TT = [0.0]
-    tempcorrection::TTC = [0.0]
-    swp::TWP = [0.0]
-    soilcorrection::TS = [0.0]
-    height::TH = [0.0]
-    tstep::TI = [1]
+@kwdef mutable struct PlottableVars <: AbstractVars
+    scaling::Vector{Any} = Any[0.0]
+    rate::Vector{Any} = Any[0.0]
+    E_ctb::Vector{Any} = Any[0.0]
+    θE::Vector{Any} = Any[0.0]
+    temp::Vector{Any} = Any[0.0]
+    tempcorrection::Vector{Any} = Any[0.0]
+    swp::Vector{Any} = Any[0.0]
+    soilcorrection::Vector{Any} = Any[0.0]
+    height::Vector{Any} = Any[0.0]
+    tstep::Vector{Int} = [1]
 end
 
 
@@ -90,16 +90,16 @@ end
 Mutable struct to allow storing variables
 for use by multiple components.
 """
-@kwdef mutable struct Vars{TF,TR,TE,TΘ,TT,TTC,TWP,TS,TH} <: AbstractVars
-    scaling::TF = 0.0
-    rate::TR = 0.0
-    θE::TΘ = 0.0
-    E_ctb::TE = 0.0
-    temp::TT = 0.0
-    tempcorrection::TTC = 0.0
-    swp::TWP = 0.0
-    soilcorrection::TS = 0.0
-    height::TH = 0.0
+@kwdef mutable struct Vars <: AbstractVars
+    scaling::Any = 0.0
+    rate::Any = 0.0
+    θE::Any = 0.0
+    E_ctb::Any = 0.0
+    temp::Any = 0.0
+    tempcorrection::Any = 0.0
+    swp::Any = 0.0
+    soilcorrection::Any = 0.0
+    height::Any = 0.0
 end
 
 tstep(v::PlottableVars) = v.tstep[1]
