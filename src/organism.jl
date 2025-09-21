@@ -1,5 +1,5 @@
 
-using DimensionalData: AbstractDimArray, Dimension, dims, lookup
+using DimensionalData: AbstractDimArray, Dimension, dims, lookup, parent, Ti
 
 """
 Abstract supertype for organ parameters.
@@ -189,6 +189,39 @@ struct Organ{P,S,V,F} <: AbstractOrgan{P,S}
     vars::V
     J::F
 end
+
+_flux_storage(o::Organ) = getfield(o, :J)
+
+function _flux_plane(J::AbstractDimArray{T,3}, idx) where {T}
+    dims_J = dims(J)
+    limit = size(parent(J), 3)
+    plane = clamp(idx, 1, limit)
+    data = view(parent(J), :, :, plane)
+    DimArray(data, dims_J[1:2])
+end
+_flux_plane(J::AbstractDimArray{T,2}, idx) where {T} = J
+
+function _organ_flux(o::Organ)
+    storage = _flux_storage(o)
+    v = vars(o)
+    if v isa PlottableVars && ndims(storage) == 3
+        return _flux_plane(storage, tstep(o))
+    else
+        return storage
+    end
+end
+
+flux(o::Organ) = _organ_flux(o)
+
+function Base.getproperty(o::Organ, name::Symbol)
+    if name === :J
+        return _organ_flux(o)
+    else
+        return getfield(o, name)
+    end
+end
+
+ConstructionBase.getproperty(o::Organ, name::Symbol) = getfield(o, name)
 """
     Organ(params, shared, records)
 
@@ -198,8 +231,7 @@ views into records arrays for vaiable and flux matrices.
 Organ(params::AbstractParams, shared::AbstractSharedParams, records) = begin
     vars = records.vars
     set_tstep!(vars, 1)
-    J = view(records.J, Ti(1))
-    Organ(params, shared, vars, J)
+    Organ(params, shared, vars, records.J)
 end
 
 
@@ -329,15 +361,12 @@ define_organs(params::Tuple, shared, records::Tuple, t) =
 update_organs(organs, t) = update_organs(vars(first(organs)), organs, t)
 update_organs(::Vars, organs, t) = organs
 update_organs(::PlottableVars, organs, t) = begin
-    i = floor(Int, ustrip(t))
+    target = max(floor(Int, ustrip(t)), 1)
     map(organs) do organ
-        organ.vars.tstep[1] = i
-        J = organ.J
-        data = J.data
-        @set! data.indices[3] = i
-        @set! data.offset1 = (i - 1) * length(data.indices[1]) * length(data.indices[2]) 
-        # Setfield.jl isn't type-stable, DD `rebuild` is better
-        @set! organ.J = DimensionalData.rebuild(J, data)
+        storage = getfield(organ, :J)
+        limit = ndims(storage) >= 3 ? size(storage, 3) : 1
+        idx = clamp(target, 1, limit)
+        organ.vars.tstep[1] = idx
         organ
     end
 end

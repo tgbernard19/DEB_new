@@ -123,7 +123,7 @@ function ParentTardieu(; ΔH_A=63.5u"kJ/mol", α=3.5, t0=300.0u"K", A=nothing)
     return ParentTardieu(ΔH_A, α, t0, Aval)
 end
 
-ParentTardieu(ΔH_A=63.5u"kJ/mol", α=3.5, t0=300.0u"K") = ParentTardieu(; ΔH_A, α, t0)
+ParentTardieu(ΔH_A, α, t0) = ParentTardieu(; ΔH_A, α, t0)
 
 parent_tardieua_unscaled(ΔH_A, α, t0, t) = begin
     ex = exp(-ΔH_A / (R * t))
