@@ -24,7 +24,7 @@ Pkg.instantiate()
 # Plots needs a headless GR backend when running without a display.
 ENV["GKSwstype"] = "100"
 
-using DimensionalData: X, Y
+using DimensionalData: Dim, dims, lookup
 using DynamicEnergyBudgets
 using Plots
 using Unitful
@@ -184,8 +184,11 @@ end
 
 # --- Diagnostics -----------------------------------------------------------
 function assimilation_series(record, state_symbol, trans_symbol)
-    slice = record.J[X(state_symbol), Y(trans_symbol)]
-    return collect(axes(slice, 1)), collect(slice)
+    slice = record.J[Dim{:state}(state_symbol), Dim{:transformation}(trans_symbol)]
+    time_dim = first(dims(slice))
+    time_lookup = lookup(time_dim)
+    time_axis = hasmethod(parent, Tuple{typeof(time_lookup)}) ? collect(parent(time_lookup)) : collect(time_lookup)
+    return time_axis, collect(slice)
 end
 
 function state_series(states, idx)
@@ -204,6 +207,11 @@ function to_mol_per_hour(vec)
     [mol_per_hour_value(v) for v in vec]
 end
 
+function ensure_time_units(vec, Δt)
+    isempty(vec) && return vec
+    vec[1] isa Quantity ? vec : [t * Δt for t in vec]
+end
+
 function make_plot(times, states, plant; output_path = joinpath(@__DIR__, "tunable_plant.png"))
     t_hours = to_hours(times)
     shoot_struct = to_mols(state_series(states, 1))
@@ -213,6 +221,8 @@ function make_plot(times, states, plant; output_path = joinpath(@__DIR__, "tunab
 
     flux_time_c, shoot_c_flux = assimilation_series(plant.records[1], :C, :asi)
     flux_time_n, root_n_flux = assimilation_series(plant.records[2], :N, :asi)
+    flux_time_c = ensure_time_units(flux_time_c, config.simulation.Δt)
+    flux_time_n = ensure_time_units(flux_time_n, config.simulation.Δt)
 
     c_hours = to_hours(flux_time_c)
     n_hours = to_hours(flux_time_n)
