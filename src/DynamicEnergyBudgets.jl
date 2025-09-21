@@ -8,21 +8,13 @@ end DynamicEnergyBudgets
 using ConstructionBase,
       DimensionalData,
       DocStringExtensions,
-      FieldMetadata,
-      FieldDefaults,
-      FieldDocTables,
-      Flatten,
-      Mixers,
       Setfield,
-      SimpleRoots,
       Requires,
+      SimpleRoots,
       Unitful
 
 using Unitful: °C, K, Pa, kPa, MPa, J, kJ, W, L, g, kg, cm, m, s, hr, d, mol, mmol, μmol, σ, R
-using Base: tail
-
-import FieldMetadata: @default, @description, @units, @bounds, @logscaled, @flattenable, @plottable, @selectable,
-                      default, description, units, bounds, logscaled, flattenable, plottable, selectable
+using Base: @kwdef, tail
 
 export AbstractAssim,
        AbstractNAssim, NH4_NO3Assim, NAssim, ConstantNAssim,
@@ -69,9 +61,7 @@ export AbstractVars, Vars, PlottableVars, CarbonVars, NitrogenVars
 export AbstractOrgan, Organ, AbstractOrganism, Plant
 
 
-const FIELDDOCTABLE = FieldDocTable((:Description, :Default, :Bounds),
-                                    (description, default, bounds);
-                                    truncation=(100, 40, 100))
+const FIELDDOCTABLE = ""
 
 const DEAD, ALIVE = false, true
 
@@ -81,12 +71,6 @@ const DEAD, ALIVE = false, true
     $(TYPEDEF)
     $(DOCSTRING)
     """
-
-# Field metadata columns
-@chain columns @udefault_kw @units @bounds @logscaled @description
-
-const BI_XTOL = 1e-10
-const BI_MAXITER = 100
 
 include("traits.jl")
 include("components/synthesizing_units.jl")

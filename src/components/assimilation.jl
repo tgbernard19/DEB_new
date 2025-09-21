@@ -6,35 +6,33 @@ light_mol_to_watts(light_mol) = light_mol / 4.57e-6
 water_content_to_mols_per_litre(wc) = wc * 55.5 # L/L of water to mol/L
 fraction_per_litre_gas_to_mols(frac) = frac / 22.4
 
+_per_time(x::Unitful.Quantity) = x
+_per_time(x) = x * (1/hr)
+
 
 """
-    CarbonVars(J_L_F, X_C, X_O, soilwaterpotential)
+    CarbonVars(; J_L_F, X_C, X_O, soilwaterpotential)
 
-Variables for carbon assimilation
-
-$(FIELDDOCTABLE)
+Variables for carbon assimilation.
 """
-@flattenable @udefault_kw @units @bounds @description mutable struct CarbonVars{MoMS,MoL,KPA}
-    # Field                  | Flatn | Default i                 | Unit          | Bounds                             | Description
-    J_L_F::MoMS              | false | watts_to_light_mol(800.0) | mol*m^-2*s^-1 | watts_to_light_mol.((0.0, 2000.0)) | "Flux of useful photons"
-    X_C::MoL                 | false | 400.0*1e-6                | mol*L^-1      | (200.0, 700.0) .* 1e-6             | "Carbon dioxide concentration in air"
-    X_O::MoL                 | false | 0.21 * gas_molpL          | mol*L^-1      | (0.1, 0.3) .* gas_molpL            | "Oxygen concentration in air"
-    soilwaterpotential::KPA  | false | -100.0                    | kPa           | (0.0, -10000.0)                    | "Soil water potential"
+@kwdef mutable struct CarbonVars{TJ,TC,TO,TΨ}
+    J_L_F::TJ = watts_to_light_mol(800.0)
+    X_C::TC = 400.0 * 1e-6
+    X_O::TO = 0.21 * gas_molpL
+    soilwaterpotential::TΨ = -100.0
 end
 
 """
-    NitrogenVars(soilwaterpotential, soilwaterconent, X_NH, X_NO, X_H)
+    NitrogenVars(; soilwaterpotential, soilwaterconent, X_NH, X_NO, X_H)
 
 Variables for nitrogen assimilation.
-
-$(FIELDDOCTABLE)
 """
-@flattenable @udefault_kw @units @bounds @description mutable struct NitrogenVars{F,KPA,MoL}
-    soilwaterpotential::KPA  | false | -100.0 | kPa      | (0.0, -10000.0) | "Soil water potential"
-    soilwaterconent::F       | false | -100.0 | _        | (0.0, -10000.0) | _
-    X_NH::MoL                | false | 0.005  | mol*L^-1 | (0.0, 0.1)      | "Concentration of ammonia"
-    X_NO::MoL                | false | 0.01   | mol*L^-1 | (0.0, 0.1)      | "Concentration of nitrate see e.g. (_@crawford1998molecular)"
-    X_H::MoL                 | false | 10.0   | mol*L^-1 | (0.0, 20.0)     | _
+@kwdef mutable struct NitrogenVars{TΨ,TF,TX,TY,TZ}
+    soilwaterpotential::TΨ = -100.0
+    soilwaterconent::TF = -100.0
+    X_NH::TX = 0.005
+    X_NO::TY = 0.01
+    X_H::TZ = 10.0
 end
 
 " Abstract supertype of all Assimilation components"
@@ -50,88 +48,91 @@ abstract type AbstractNAssim <: AbstractAssim end
 abstract type AbstractNH4_NO3Assim <: AbstractNAssim end
 
 """
-    ConstantCAssim(c_uptake)
+    ConstantCAssim(; c_uptake)
 
-C is assimilated at a constant rate, without control from the environment
-
-$(FIELDDOCTABLE)
+C is assimilated at a constant rate without environmental control.
 """
-@columns struct ConstantCAssim{μMoMS} <: AbstractCAssim
-    # Field         | Def | Unit              | Bounds      | Log | Description
-    c_uptake::μMoMS | 0.1 | μmol*mol^-1*s^-1  | (0.0, 10.0) | _   | "Constant rate of C uptake"
+@kwdef struct ConstantCAssim{T} <: AbstractCAssim
+    c_uptake::T = 0.1
 end
 
 """
-    ConstantNAssim(n_uptake)
+    ConstantNAssim(; n_uptake)
 
-N is assimilated at a constant rate, without control from the environment
-
-$(FIELDDOCTABLE)
+N is assimilated at a constant rate without environmental control.
 """
-@columns struct ConstantNAssim{μMoMS} <: AbstractNAssim
-    n_uptake::μMoMS | 0.1  | μmol*mol^-1*s^-1 | (0.0, 0.5)  | _   | "Constant rate of N uptake"
+@kwdef struct ConstantNAssim{T} <: AbstractNAssim
+    n_uptake::T = 0.1
 end
 
-@mix @columns struct SLA{MG}
-    SLA::MG         | 24.0 | m^2*kg^-1        | (5.0, 30.0) | _   | "Specific leaf Area. Ferns: 17.4, Forbs: 26.2, Graminoids: 24.0, Shrubs: 9.10, Trees: 8.30"
-end
-
-# Mixin paramters for multiple similar formulations
-@mix @columns @SLA struct MixinKooijmanPhoto{μMoMoS,MoL,μMoMS,MoMS,V}
-    #Field              | Default           | Unit             | Bounds           | Log  | Description
-    vars::V             | CarbonVars()      | _                | _                | _    | _
-    k_C_binding::μMoMoS | 10000.0           | μmol*mol^-1*s^-1 | (1e-5, 2000.0)   | true | "Scaling rate for carbon dioxide"
-    k_O_binding::μMoMoS | 10000.0           | μmol*mol^-1*s^-1 | (1e-5, 2000.0)   | true | "Scaling rate for oxygen"
-    K_C::MoL            | 50*1e-6/gas_molpL | mol*L^-1         | (1e-7, 100.0)    | true | "Half-saturation concentration of carbon dioxide"
-    K_O::MoL            | 0.0021/gas_molpL  | mol*L^-1         | (1e-7, 100.0)    | true | "Half-saturation concentration of oxygen"
-    J_L_K::MoMS         | 2000.0            | mol*m^-2*s^-1    | (1e-3, 100000.0) | true | "Half-saturation flux of useful photons"
-    j_L_Amax::μMoMS     | 100.01            | μmol*m^-2*s^-1   | (1e-4, 10000.0)  | true | "Maximum specific uptake of useful photons"
-    j_C_Amax::μMoMS     | 20.0              | μmol*m^-2*s^-1   | (5.0,  100.0)    | true | "Maximum specific uptake of carbon dioxide"
-    j_O_Amax::μMoMS     | 0.1               | μmol*m^-2*s^-1   | (0.01,  50.0)    | true | "Maximum specific uptake of oxygen"
+@kwdef struct KooijmanPhotoParams{TV,TB,TC,TO,TJ,TA,TCM,TOM,TS}
+    vars::TV = CarbonVars()
+    k_C_binding::TB = 10000.0
+    k_O_binding::TB = 10000.0
+    K_C::TC = 50 * 1e-6 / gas_molpL
+    K_O::TO = 0.0021 / gas_molpL
+    J_L_K::TJ = 2000.0
+    j_L_Amax::TA = 100.01
+    j_C_Amax::TCM = 20.0
+    j_O_Amax::TOM = 0.1
+    SLA::TS = 24.0
 end
 
 abstract type AbstractKooijmanPhoto <: AbstractCAssim end
 
 """
-    KooijmanSLAPhotosynthesis(vars, k_C_binding, k_O_binding, K_C, K_O, J_L_K, j_L_Amax, j_C_Amax, j_O_Amax)
+    KooijmanSLAPhotosynthesis(; kwargs...)
 
-Parameters for simple photosynthesis module. With specific leaf area to convert area to mass
-
-$(FIELDDOCTABLE)
+Parameters for the simple photosynthesis module with specific leaf area
+to convert area to mass.
 """
-@MixinKooijmanPhoto struct KooijmanSLAPhotosynthesis{} <: AbstractKooijmanPhoto end
+struct KooijmanSLAPhotosynthesis{TV,TB,TC,TO,TJ,TA,TCM,TOM,TS} <: AbstractKooijmanPhoto
+    vars::TV
+    k_C_binding::TB
+    k_O_binding::TB
+    K_C::TC
+    K_O::TO
+    J_L_K::TJ
+    j_L_Amax::TA
+    j_C_Amax::TCM
+    j_O_Amax::TOM
+    SLA::TS
+    function KooijmanSLAPhotosynthesis(; kwargs...)
+        p = KooijmanPhotoParams(; kwargs...)
+        return new{typeof(p.vars), typeof(p.k_C_binding), typeof(p.K_C), typeof(p.K_O), typeof(p.J_L_K),
+                   typeof(p.j_L_Amax), typeof(p.j_C_Amax), typeof(p.j_O_Amax), typeof(p.SLA)}(
+            p.vars, p.k_C_binding, p.k_O_binding, p.K_C, p.K_O, p.J_L_K,
+            p.j_L_Amax, p.j_C_Amax, p.j_O_Amax, p.SLA)
+    end
+end
 
 # @columns struct WaterPotentialCutoff{KPA}
     # cutoff::KPA    | -250.0  | kPa  | (0.0, -500.0) | _ | "Max spec uptake of oxygen"
 # end
 
 
-""" 
-Parameters for Ammonia/Nitrate assimilation 
-
-$(FIELDDOCTABLE)
 """
-@columns struct KooijmanNH4_NO3Assim{μMoMS,F,MoMo,MoL,V} <: AbstractNH4_NO3Assim
-    vars::V          | NitrogenVars() | _         | _             | _ | _
-    j_NH_Amax::μMoMS | 50.0    | μmol*mol^-1*s^-1 | (0.1, 1000.0) | _ | "Max spec uptake of ammonia"
-    j_NO_Amax::μMoMS | 50.0    | μmol*mol^-1*s^-1 | (0.1, 1000.0) | _ | "Max spec uptake of nitrate"
-    ρNO::F           | 0.7     | _                | (1e-4, 1.0)   | _ | "Weights preference for nitrate relative to ammonia." # 1 or less but why?
-    y_E_CH_NH::MoMo  | 1.25    | mol*mol^-1       | (1e-4, 4.0)   | _ | "From roots C-reserve to reserve using ammonia"
-    K_NH::MoL        | 0.01    | mol*L^-1         | (1e-4, 10.0)  | _ | "Half-saturation concentration of ammonia"
-    K_NO::MoL        | 0.01    | mol*L^-1         | (1e-4, 10.0)  | _ | "Half-saturation concentration of nitrate"
-    K_H::MoL         | 10.0    | mol*L^-1         | (5.0, 20.0)   | _ | "Half-saturation concentration of water"
+Parameters for ammonia/nitrate assimilation.
+"""
+@kwdef struct KooijmanNH4_NO3Assim{TV,TJ,Tρ,TY,TC,TL} <: AbstractNH4_NO3Assim
+    vars::TV = NitrogenVars()
+    j_NH_Amax::TJ = 50.0
+    j_NO_Amax::TJ = 50.0
+    ρNO::Tρ = 0.7
+    y_E_CH_NH::TY = 1.25
+    K_NH::TC = 0.01
+    K_NO::TC = 0.01
+    K_H::TL = 10.0
 end
 
-""" 
-Parameters for Nitrogen assimilation 
-
-$(FIELDDOCTABLE)
 """
-@columns struct NAssim{μMoS,MoL,V} <: AbstractNAssim
-    vars::V          | NitrogenVars() | _         | _             | _ | _
-    j_N_Amax::μMoS   | 50.0    | μmol*mol^-1*s^-1 | (0.1, 1000.0) | _ | "Max spec uptake of ammonia"
-    K_N::MoL         | 0.01    | mol*L^-1         | (1e-4, 1.0)   | _ | "Half-saturation concentration of nitrate"
-    K_H::MoL         | 10.0    | mol*L^-1         | (1e-2, 100.0) | _ | "Half-saturation concentration of water"
+Parameters for nitrogen assimilation.
+"""
+@kwdef struct NAssim{TV,TJ,TK,TL} <: AbstractNAssim
+    vars::TV = NitrogenVars()
+    j_N_Amax::TJ = 50.0
+    K_N::TK = 0.01
+    K_H::TL = 10.0
 end
 
 
@@ -188,7 +189,7 @@ Return the assimilated C for `Organ` `o` with state variables `u`.
 """
 function photosynthesis end
 
-photosynthesis(f::ConstantCAssim, o, u) = f.c_uptake
+photosynthesis(f::ConstantCAssim, o, u) = _per_time(f.c_uptake)
 
 photosynthesis(f::KooijmanSLAPhotosynthesis, o, u) = begin
     v = vars(o); va = f.vars
@@ -209,7 +210,7 @@ photosynthesis(f::KooijmanSLAPhotosynthesis, o, u) = begin
     j1_co = j1_c + j1_o
     co_l = j1_co/j1_l - j1_co/(j1_l + j1_co)
 
-    j_c_intake / (1 + bound_c + bound_o + co_l)
+    _per_time(j_c_intake / (1 + bound_c + bound_o + co_l))
 end
 
 
@@ -220,7 +221,7 @@ end
 
 Returns constant nitrogen assimilation.
 """
-nitrogen_uptake(f::ConstantNAssim, o, u) = f.n_uptake * tempcorrection(o)
+nitrogen_uptake(f::ConstantNAssim, o, u) = _per_time(f.n_uptake * tempcorrection(o))
 
 """
     nitrogen_uptake(f::KooijmanNH4_NO3Assim, o, u)
@@ -232,8 +233,8 @@ function nitrogen_uptake(f::KooijmanNH4_NO3Assim, o, u)
 
     K1_NH = half_saturation(f.K_NH, f.K_H, va.X_H) # Ammonia saturation. va.X_H was multiplied by ox.scaling. But that makes no sense.
     K1_NO = half_saturation(f.K_NO, f.K_H, va.X_H) # Nitrate saturation
-    J1_NH_ass = half_saturation(f.j_NH_Amax, K1_NH, va.X_NH) * tempcorrection(o) # Arriving ammonia mols.mol⁻¹.s⁻¹
-    J_NO_ass = half_saturation(f.j_NO_Amax, K1_NO, va.X_NO) * tempcorrection(o) # Arriving nitrate mols.mol⁻¹.s⁻¹
+    J1_NH_ass = _per_time(half_saturation(f.j_NH_Amax, K1_NH, va.X_NH) * tempcorrection(o))
+    J_NO_ass = _per_time(half_saturation(f.j_NO_Amax, K1_NO, va.X_NO) * tempcorrection(o))
 
     J_N_ass = J1_NH_ass + f.ρNO * J_NO_ass # Total arriving N flux
     return (J_N_ass, J_NO_ass, J1_NH_ass)
@@ -249,6 +250,6 @@ function nitrogen_uptake(f::NAssim, o, u)
     # Ammonia proportion in soil water
     K1_N = half_saturation(f.K_N, f.K_H, va.X_H)
     # Arriving ammonia in mol mol^-1 s^-1
-    half_saturation(f.j_N_Amax, K1_N, va.X_NO) * tempcorrection(o)
+    _per_time(half_saturation(f.j_N_Amax, K1_N, va.X_NO) * tempcorrection(o))
 end
 

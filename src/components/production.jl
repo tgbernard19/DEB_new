@@ -5,13 +5,12 @@ abstract type AbstractProduction end
 
 $(FIELDDOCTABLE)
 """
-@columns struct Production{MoMo,MoMoD,GMo} <: AbstractProduction
-    # Field        | Default | Unit            | Bounds       | Log | Description
-    y_P_V::MoMo    | 0.02    | mol*mol^-1      | (0.0,1.0)    | _   | "Product formation linked to growth"
-    j_P_mai::MoMoD | 0.001   | mol*mol^-1*d^-1 | (0.0,0.1)    | _   | "Product formation linked to maintenance"
-    n_N_P::MoMo    | 0.1     | mol*mol^-1      | (0.0, 1.0)   | _   | "N/C in product (wood)"
-    w_P::GMo       | 25.0    | g*mol^-1        | (10.0, 40.0) | _   | "Mol-weight of shoot product (wood)"
-end                                                                                        
+@kwdef struct Production{TY,TJ,TN,TW} <: AbstractProduction
+    y_P_V::TY = 0.02
+    j_P_mai::TJ = 0.001
+    n_N_P::TN = 0.1
+    w_P::TW = 25.0
+end
 
 for fn in fieldnames(Production)
     @eval $fn(p::Production) = p.$fn
@@ -22,5 +21,9 @@ growth_production!(p::Production, o, growth) = flux(o)[:P,:gro] = growth * p.y_P
 growth_production!(p::Nothing, o, growth) = zero(growth)
 
 maintenance_production!(o, u) = maintenance_production!(production_pars(o), o, u)
-maintenance_production!(p::Production, o, u) = flux(o)[:P,:mai] = p.j_P_mai * tempcorrection(o) * u[:V]
+maintenance_production!(p::Production, o, u) = begin
+    rate = p.j_P_mai * tempcorrection(o)
+    rate = rate isa Unitful.Quantity ? rate : rate * (1/hr)
+    flux(o)[:P,:mai] = rate * u[:V]
+end
 maintenance_production!(p::Nothing, o, u) = zero(eltype(flux(o)))

@@ -17,9 +17,9 @@ abstract type AbstractCatabolismCN <: AbstractCatabolism end
 
 catabolism!(p::AbstractCatabolismCN, o, u) = begin
     v, J = vars(o), flux(o)
-    turnover = (kC(p), kN(p)) .* tempcorrection(v) .* scaling(v)
+    turnover = (kC(p), kN(p)) .* tempcorrection(v) .* scaling(v) .* (1/hr)
     rel_reserve = (u[:C], u[:N]) ./ u[:V]
-    corrected_j_E_mai = j_E_mai(o) * tempcorrection(v) 
+    corrected_j_E_mai = j_E_mai(o) * tempcorrection(v) * (1/hr)
 
     # Calculate the growth rate
     r, alive = calc_rate(su_pars(o), rel_reserve, turnover, corrected_j_E_mai, 
@@ -44,9 +44,9 @@ end
 
 $(FIELDDOCTABLE)
 """
-@columns struct CatabolismCN{KC,KN} <: AbstractCatabolismCN 
-    kC::KC | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "C-reserve turnover rate"
-    kN::KN | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "N-reserve turnover rate"
+@kwdef struct CatabolismCN{TKC,TKN} <: AbstractCatabolismCN
+    kC::TKC = 0.2
+    kN::TKN = 0.2
 end
 
 """
@@ -56,8 +56,8 @@ end
 
 $(FIELDDOCTABLE)
 """
-@columns struct CatabolismCNshared{K} <: AbstractCatabolismCN 
-    k::K  | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "Reserve turnover rate"
+@kwdef struct CatabolismCNshared{TK} <: AbstractCatabolismCN
+    k::TK = 0.2
 end
 
 kC(p::CatabolismCNshared) = p.k
@@ -68,10 +68,10 @@ abstract type AbstractCatabolismCNE <: AbstractCatabolism end
 
 catabolism!(p::AbstractCatabolismCNE, o, u) = begin
     v, J, J1 = vars(o), flux(o), flux1(o)
-    turnover = (kC(p), kN(p), kE(p)) .* tempcorrection(v) .* scaling(v)
+    turnover = (kC(p), kN(p), kE(p)) .* tempcorrection(v) .* scaling(v) .* (1/hr)
     reserve = (u[:C], u[:N], u[:E])
     rel_reserve = reserve ./ u[:V]
-    corrected_j_E_mai = j_E_mai(o) * tempcorrection(o) 
+    corrected_j_E_mai = j_E_mai(o) * tempcorrection(o) * (1/hr)
 
     r, isalive = calc_rate(su_pars(o), rel_reserve, turnover, corrected_j_E_mai(o), y_E_C(o), y_E_N(o), y_V_E(o), κsoma(o), tstep(o))
     set_rate!(o, r)
@@ -96,9 +96,9 @@ end
 
 $(FIELDDOCTABLE)
 """
-@columns struct CatabolismCNE{KE,KC,KN} <: AbstractCatabolismCNE
-    k::KE  | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "Reserve turnover rate"
-    kC::KC | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "C-reserve turnover rate"
-    kN::KN | 0.2 | mol*mol^-1*d^-1 | (0.0,1.0) | _   | "N-reserve turnover rate"
+@kwdef struct CatabolismCNE{TK,TC,TN} <: AbstractCatabolismCNE
+    k::TK = 0.2
+    kC::TC = 0.2
+    kN::TN = 0.2
 end
 

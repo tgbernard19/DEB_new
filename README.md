@@ -24,3 +24,21 @@ plant model by Bas Kooijman.
 
 
 ![Plant model](https://raw.githubusercontent.com/rafaqz/DynamicEnergyBudgets.jl/assets/deb_plant.png)
+
+## Tunable plant example
+
+A self-contained script that builds a two-organ plant, runs it for a configurable
+number of hours, and exports a diagnostic plot lives in `examples/tunable_plant.jl`.
+It records structural biomass and reserve pools for the shoot and root along
+with their carbon and nitrogen assimilation fluxes. Edit the `config` named
+tuple at the top of the script to explore different parameter combinations.
+
+To run the example (and generate `examples/tunable_plant.png`):
+
+```bash
+julia --project=examples examples/tunable_plant.jl
+```
+
+The script activates the `examples/Project.toml` environment, develops the local
+checkout of `DynamicEnergyBudgets`, and will install the plotting dependency on
+the first run.

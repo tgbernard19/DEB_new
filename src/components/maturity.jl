@@ -22,11 +22,10 @@ A maturity model seperated to make maturity modeling optional.
 
 $(FIELDDOCTABLE)
 """
-@columns struct Maturity{MoMoD,F,Mo} <: AbstractMaturity
-    # Field            | Default         | Unit            | Bounds       | Log  | Description
-    j_E_mat_mai::MoMoD | 0.001           | mol*mol^-1*d^-1 | (0.0, 0.1)   | _    | "Spec maturity maint costs "
-    κmat::F            | 0.05            | _               | (0.0, 1.0)   | _    | "Reserve flux allocated to development/reprod."
-    threshold::Mo      | 1.0             | mol             | (1e-3, 20.0) | true | "Structural mass at start reproduction" # TODO: isn't this variable/seasonally triggered?  
+@kwdef struct Maturity{TJ,TF,TM} <: AbstractMaturity
+    j_E_mat_mai::TJ = 0.001
+    κmat::TF = 0.05
+    threshold::TM = 1.0
 end
 
 # n_N_M::MoMo      | 0.05            | mol*mol^-1      | [0.0, 1.0]   | _    | "N/C use for maturity"

@@ -8,9 +8,9 @@ We do this recursively for type stability.
 """
 split_state(o::Tuple, u::AbstractArray) = split_state(o, u, 0)
 split_state(o::Tuple{O,Vararg}, u::AbstractArray, offset) where O = begin
-    statedim = dims(flux(o[1]), X)
+    statedim = dims(flux(o[1]))[1]
     v = view(parent(u), offset+1:offset+length(statedim))
-    lv = DimensionalArray(v, (statedim,))
+    lv = DimArray(v, (statedim,))
     (lv, split_state(tail(o), u, offset + length(statedim))...)
 end
 split_state(o::Tuple{}, u::AbstractArray, offset) = ()

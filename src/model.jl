@@ -45,6 +45,25 @@ function debmodel!(organs::Tuple, u::Tuple, env)
     return true
 end
 
+_zero_flux_unit(organs) = begin
+    first_organ = first(organs)
+    J = flux(first_organ)
+    zero(J[1, 1])
+end
+
+function _fill_zero_flux!(du, organs)
+    zero_flux = _zero_flux_unit(organs)
+    try
+        fill!(du, zero_flux)
+    catch err
+        if err isa DimensionError
+            throw(ArgumentError("derivative buffer `du` must be able to store flux units of type $(zero_flux)."))
+        else
+            rethrow()
+        end
+    end
+end
+
 # These are currently implemented for Plant. In future this will be implemented
 # for AbstractOrganism, when julis allows that.
 (o::Plant)(du::AbstractVector{<:Unitful.Quantity}, u::AbstractVector{<:Unitful.Quantity}, p, t::Unitful.Quantity) = begin
@@ -98,7 +117,7 @@ end
     try
         apply_environment!(organism, organs, ux, t)
     catch e
-        du .= zero(eltype(du))
+        _fill_zero_flux!(du, organs)
         set_dead!(organism, true)
         @warn "dead at $t due to error: $e"
         return
@@ -106,7 +125,7 @@ end
 
     # Run the model, tag the organism as dead if it breaks.
     if !debmodel!(organs, ux, environment(organism))
-        du .= zero(eltype(du))
+        _fill_zero_flux!(du, organs)
         set_dead!(organism, true)
         @warn "dead at $t due to growth rate"
         return

@@ -1,6 +1,8 @@
 
+using DimensionalData: AbstractDimArray, Dimension, dims, lookup, parent, Ti
+
 """
-Abstract supertype for organ parameters. 
+Abstract supertype for organ parameters.
 Extend to add additional components to organ parameters.
 """
 abstract type AbstractParams end
@@ -8,16 +10,15 @@ abstract type AbstractParams end
 """
 Model parameters that vary between organs
 """
-@default_kw @flattenable @selectable struct Params{As,Sh,Al,Ma,Tr,Re,Ge,Pr} <: AbstractParams
-    # Field               | Default                    | _     | Selectable Types
-    assimilation_pars::As | ConstantCAssim()           | _     | Union{Nothing,AbstractAssim}
-    scaling_pars::Sh      | nothing                    | _     | Union{Nothing,AbstractScaling}
-    allometry_pars::Al    | nothing                    | _     | Union{Nothing,AbstractAllometry}
-    maturity_pars::Ma     | nothing                    | _     | Union{Nothing,AbstractMaturity}
-    activetrans_pars::Tr  | nothing                    | _     | Union{Nothing,ActiveTranslocation}
-    passivetrans_pars::Re | LosslessPassiveTranslocation() | _ | PassiveTranslocation
-    germination_pars::Ge  | nothing                    | _     | Union{Nothing,AbstractGermination}
-    production_pars::Pr   | nothing                    | _     | Union{Nothing,AbstractProduction}
+@kwdef struct Params{As,Sh,Al,Ma,Tr,Re,Ge,Pr} <: AbstractParams
+    assimilation_pars::As = ConstantCAssim()
+    scaling_pars::Sh = nothing
+    allometry_pars::Al = nothing
+    maturity_pars::Ma = nothing
+    activetrans_pars::Tr = nothing
+    passivetrans_pars::Re = LosslessPassiveTranslocation()
+    germination_pars::Ge = nothing
+    production_pars::Pr = nothing
 end
 
 for fn in fieldnames(Params)
@@ -41,13 +42,12 @@ Model parameters shared between organs.
 - `@selectable` provides the set of types that can be used for the parameter,
   so that they can be selected in a live interface.
 """
-@default_kw @selectable struct SharedParams{SU,Co,Fe,Te,Ca} <: AbstractSharedParams
-    # Field               | Default                   | Selectable Types
-    su_pars::SU           | ParallelComplementarySU() | AbstractSynthesizingUnit
-    core_pars::Co         | DEBCore()                 | _
-    resorption_pars::Fe   | nothing                   | Union{Nothing,AbstractResorption}
-    tempcorr_pars::Te     | nothing                   | Union{Nothing,AbstractTemperatureCorrection}
-    catabolism_pars::Ca   | CatabolismCN()            | AbstractCatabolism
+@kwdef struct SharedParams{SU,Co,Fe,Te,Ca} <: AbstractSharedParams
+    su_pars::SU = ParallelComplementarySU()
+    core_pars::Co = DEBCore()
+    resorption_pars::Fe = nothing
+    tempcorr_pars::Te = nothing
+    catabolism_pars::Ca = CatabolismCN()
 end
 
 for fn in fieldnames(SharedParams)
@@ -70,17 +70,17 @@ abstract type AbstractVars end
 Plottable model variables. These are vectors witih values for each time-step,
 to allow plotting and model introspection.
 """
-@udefault_kw @units @plottable struct PlottableVars{F,R,E,T,WP,H,TS} <: AbstractVars
-    scaling::F        | [0.0] | _                 | _
-    rate::R           | [0.0] | mol*mol^-1*d^-1   | _
-    E_ctb::E          | [0.0] | mol/hr            | _
-    θE::F             | [0.0] | _                 | _
-    temp::T           | [0.0] | K                 | _
-    tempcorrection::F | [0.0] | _                 | _
-    swp::WP           | [0.0] | kPa               | _
-    soilcorrection::F | [0.0] | _                 | _
-    height::H         | [0.0] | m                 | _
-    tstep::TS         | [1]   | _                 | false
+@kwdef mutable struct PlottableVars <: AbstractVars
+    scaling::Vector{Any} = Any[0.0]
+    rate::Vector{Any} = Any[0.0]
+    E_ctb::Vector{Any} = Any[0.0]
+    θE::Vector{Any} = Any[0.0]
+    temp::Vector{Any} = Any[0.0]
+    tempcorrection::Vector{Any} = Any[0.0]
+    swp::Vector{Any} = Any[0.0]
+    soilcorrection::Vector{Any} = Any[0.0]
+    height::Vector{Any} = Any[0.0]
+    tstep::Vector{Int} = [1]
 end
 
 
@@ -90,16 +90,16 @@ end
 Mutable struct to allow storing variables
 for use by multiple components.
 """
-@udefault_kw @units mutable struct Vars{F,R,E,T,WP,H} <: AbstractVars
-    scaling::F        | 0.0   | _
-    rate::R           | 0.0   | mol*mol^-1*d^-1
-    θE::F             | 0.0   | _
-    E_ctb::E          | 0.0   | mol/hr          
-    temp::T           | 0.0   | K
-    tempcorrection::F | 0.0   | _
-    swp::WP           | 0.0   | kPa
-    soilcorrection::F | 0.0   | _
-    height::H         | 0.0   | m
+@kwdef mutable struct Vars <: AbstractVars
+    scaling::Any = 0.0
+    rate::Any = 0.0
+    θE::Any = 0.0
+    E_ctb::Any = 0.0
+    temp::Any = 0.0
+    tempcorrection::Any = 0.0
+    swp::Any = 0.0
+    soilcorrection::Any = 0.0
+    height::Any = 0.0
 end
 
 tstep(v::PlottableVars) = v.tstep[1]
@@ -189,6 +189,44 @@ struct Organ{P,S,V,F} <: AbstractOrgan{P,S}
     vars::V
     J::F
 end
+
+_flux_storage(o::Organ) = getfield(o, :J)
+
+function _flux_plane(J::AbstractDimArray{T,3}, idx) where {T}
+    dims_J = dims(J)
+    limit = size(parent(J), 3)
+    plane = clamp(idx, 1, limit)
+    data = view(parent(J), :, :, plane)
+    DimArray(data, dims_J[1:2])
+end
+_flux_plane(J::AbstractDimArray{T,2}, idx) where {T} = J
+
+function _organ_flux(o::Organ)
+    storage = _flux_storage(o)
+    v = vars(o)
+    if v isa PlottableVars && ndims(storage) == 3
+        return _flux_plane(storage, tstep(o))
+    else
+        return storage
+    end
+end
+
+flux(o::Organ) = _organ_flux(o)
+
+function Base.getproperty(o::Organ, name::Symbol)
+    if name === :J
+        return _organ_flux(o)
+    else
+        return getfield(o, name)
+    end
+end
+
+function ConstructionBase.getproperties(o::Organ)
+    (; params = o.params,
+       shared = o.shared,
+       vars = o.vars,
+       J = _flux_storage(o))
+end
 """
     Organ(params, shared, records)
 
@@ -198,8 +236,7 @@ views into records arrays for vaiable and flux matrices.
 Organ(params::AbstractParams, shared::AbstractSharedParams, records) = begin
     vars = records.vars
     set_tstep!(vars, 1)
-    J = view(records.J, Ti(1))
-    Organ(params, shared, vars, J)
+    Organ(params, shared, vars, records.J)
 end
 
 
@@ -207,9 +244,9 @@ end
 # timestep for plotting if PlottableVars are used.
 abstract type AbstractRecords end
 
-@plottable struct PlottableRecords{V,F} <: AbstractRecords
-    vars::V | true
-    J::F    | false
+struct PlottableRecords{V,F} <: AbstractRecords
+    vars::V
+    J::F
 end
 PlottableRecords(vars::PlottableVars, J::AbstractArray) =
     PlottableRecords{map(typeof,(vars,J))...}(vars, J)
@@ -219,9 +256,9 @@ PlottableRecords(vars::PlottableVars, fluxval::Number, fluxaxes::Tuple, tspan::A
     PlottableRecords(vars, J)
 end
 
-@plottable struct Records{V,F} <: AbstractRecords
-    vars::V | false
-    J::F    | false
+struct Records{V,F} <: AbstractRecords
+    vars::V
+    J::F
 end
 Records(vars::Vars, J::AbstractArray) =
     Records{map(typeof,(vars,J))...}(vars, J)
@@ -230,15 +267,56 @@ Records(vars::Vars, fluxval::Number, fluxaxes::Tuple) = begin
     Records{map(typeof, (vars,J))...}(vars, J)
 end
 
+const StateDim = Dim{:state}
+const TransformationDim = Dim{:transformation}
+
+_collect_labels(labels::Tuple) = collect(labels)
+_collect_labels(labels) = labels
+
 build_flux(fluxval, x::Tuple, y::Tuple) = begin
-    dims = X(Val(x)), Y(Val(y))
-    A = zeros(typeof(fluxval), map(length, dims)...)
-    DimensionalArray(A, dims)
+    state_labels = _collect_labels(x)
+    transf_labels = _collect_labels(y)
+    dims = (StateDim(state_labels), TransformationDim(transf_labels))
+    A = fill(zero(fluxval), length(state_labels), length(transf_labels))
+    DimArray(A, dims)
 end
 build_flux(fluxval, x::Tuple, y::Tuple, time::AbstractRange) = begin
-    dims = X(Val(x)), Y(Val(y)), Ti(time)
-    A = zeros(typeof(fluxval), map(length, dims)...)
-    DimensionalArray(A, dims)
+    state_labels = _collect_labels(x)
+    transf_labels = _collect_labels(y)
+    dims = (StateDim(state_labels), TransformationDim(transf_labels), Ti(time))
+    A = fill(zero(fluxval), length(state_labels), length(transf_labels), length(time))
+    DimArray(A, dims)
+end
+
+_label_data(l) = l
+_label_data(l::DimensionalData.LookupArrays.Lookup) = parent(l)
+
+@inline function _dim_index(dim::Dimension, label)
+    values = _label_data(lookup(dim))
+    values isa AbstractVector || (values = collect(values))
+    idx = findfirst(isequal(label), values)
+    idx === nothing && throw(ArgumentError("Unknown label $(label) for dimension"))
+    idx
+end
+
+function Base.getindex(A::AbstractDimArray{T,2}, state::Symbol, transform::Symbol) where {T}
+    d = dims(A)
+    A[_dim_index(d[1], state), _dim_index(d[2], transform)]
+end
+
+function Base.setindex!(A::AbstractDimArray{T,2}, value, state::Symbol, transform::Symbol) where {T}
+    d = dims(A)
+    A[_dim_index(d[1], state), _dim_index(d[2], transform)] = value
+end
+
+function Base.getindex(A::AbstractDimArray{T,1}, state::Symbol) where {T}
+    d = dims(A)
+    A[_dim_index(d[1], state)]
+end
+
+function Base.setindex!(A::AbstractDimArray{T,1}, value, state::Symbol) where {T}
+    d = dims(A)
+    A[_dim_index(d[1], state)] = value
 end
 
 
@@ -288,15 +366,12 @@ define_organs(params::Tuple, shared, records::Tuple, t) =
 update_organs(organs, t) = update_organs(vars(first(organs)), organs, t)
 update_organs(::Vars, organs, t) = organs
 update_organs(::PlottableVars, organs, t) = begin
-    i = floor(Int, ustrip(t))
+    target = max(floor(Int, ustrip(t)), 1)
     map(organs) do organ
-        organ.vars.tstep[1] = i
-        J = organ.J
-        data = J.data
-        @set! data.indices[3] = i
-        @set! data.offset1 = (i - 1) * length(data.indices[1]) * length(data.indices[2]) 
-        # Setfield.jl isn't type-stable, DD `rebuild` is better
-        @set! organ.J = DimensionalData.rebuild(J, data)
+        storage = getfield(organ, :J)
+        limit = ndims(storage) >= 3 ? size(storage, 3) : 1
+        idx = clamp(target, 1, limit)
+        organ.vars.tstep[1] = idx
         organ
     end
 end
@@ -342,19 +417,22 @@ are used, their state label needs to be passed in:
 transformations=(:asi, :gro, :mai, :mat, :rej, :tra, :res),
 ```
 """
-@flattenable @description mutable struct Plant{P,S,R,O,E,ES,D} <: AbstractOrganism
-    params::P             | true  | "Model parameters"
-    shared::S             | true  | "Parameters shared between organs"
-    records::R            | false | "Plotable variables stored in arrays and sliced for each timestep on demand"
-    organs::O             | false | ""
-    environment::E        | false | "Environment object, provides environmental variables for each timestep"
-    environment_start::ES | false | "Start index of environmental data"
-    dead::D               | false | "`Bool` flag: has the plant died"
-    Plant(params::P, shared::S, records::R, organs::O, environment::E, environment_start::ES, dead::D) where {P,S,R,O,E,ES,D} = begin
-        organs = define_organs(params, shared, records, 0)
-        new{P,S,R,typeof(organs),E,ES,D}(params, shared, records, organs, environment, environment_start, dead)
-    end
+mutable struct Plant{P,S,R,O,E,ES,D} <: AbstractOrganism
+    params::P
+    shared::S
+    records::R
+    organs::O
+    environment::E
+    environment_start::ES
+    dead::D
 end
+
+function Plant(params::P, shared::S, records::R, ::Nothing, environment::E, environment_start::ES, dead::D) where {P,S,R,E,ES,D}
+    organs = define_organs(params, shared, records, 0)
+    Plant{P,S,R,typeof(organs),E,ES,D}(params, shared, records, organs, environment, environment_start, dead)
+end
+
+
 Plant(; states=(:V, :C, :N),
         transformations=(:asi, :gro, :mai, :rej, :tra, :res),
         params=(
@@ -370,7 +448,7 @@ Plant(; states=(:V, :C, :N),
         dead=Ref(false)
       ) = begin
     fluxaxes = states, transformations
-    fluxval = 1.0mol/hr
+    fluxval = 0.0mol/hr
     records = build_records(records, vars, fluxval, fluxaxes, time)
     Plant(params, shared, records, nothing, environment, environment_start, dead)
 end
