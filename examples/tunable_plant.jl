@@ -24,7 +24,7 @@ Pkg.instantiate()
 # Plots needs a headless GR backend when running without a display.
 ENV["GKSwstype"] = "100"
 
-using DimensionalData: Dim, dims, lookup
+using DimensionalData: Dim, At, dims, lookup
 using DynamicEnergyBudgets
 using Plots
 using Unitful
@@ -184,7 +184,10 @@ end
 
 # --- Diagnostics -----------------------------------------------------------
 function assimilation_series(record, state_symbol, trans_symbol)
-    slice = record.J[Dim{:state}(state_symbol), Dim{:transformation}(trans_symbol)]
+    slice = record.J[
+        Dim{:state}(At(state_symbol)),
+        Dim{:transformation}(At(trans_symbol)),
+    ]
     time_dim = first(dims(slice))
     time_lookup = lookup(time_dim)
     time_axis = hasmethod(parent, Tuple{typeof(time_lookup)}) ? collect(parent(time_lookup)) : collect(time_lookup)
