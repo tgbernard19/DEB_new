@@ -221,7 +221,12 @@ function Base.getproperty(o::Organ, name::Symbol)
     end
 end
 
-ConstructionBase.getproperty(o::Organ, name::Symbol) = getfield(o, name)
+function ConstructionBase.getproperties(o::Organ)
+    (; params = o.params,
+       shared = o.shared,
+       vars = o.vars,
+       J = _flux_storage(o))
+end
 """
     Organ(params, shared, records)
 

@@ -8,14 +8,40 @@ wether the organ is alive or dead.
 Returns a `Tuple` holding the rate and a Bool for alive/dead status
 """
 function calc_rate end
-function calc_rate(su, rel_reserve::Tuple, turnover::Tuple, 
+
+function _secant_root(f, x0, x1; atol, maxiters)
+    fx0 = f(x0)
+    fx1 = f(x1)
+    xprev, fprev = x0, fx0
+    xcurr, fcurr = x1, fx1
+
+    for _ in 1:maxiters
+        denom = fcurr - fprev
+        if iszero(denom)
+            return xcurr, DEAD
+        end
+
+        xnext = xcurr - fcurr * (xcurr - xprev) / denom
+        if abs(xnext - xcurr) <= atol
+            return xnext, ALIVE
+        end
+
+        xprev, fprev = xcurr, fcurr
+        xcurr = xnext
+        fcurr = f(xcurr)
+    end
+
+    return xcurr, DEAD
+end
+
+function calc_rate(su, rel_reserve::Tuple, turnover::Tuple,
                    j_E_mai, y_E_Ea, y_E_Eb, y_V_E, κsoma, tstep)
     # Find the type of `rate` so that diff and units work with atol etc
     one_r = oneunit(eltype(turnover))
     # Get rate with a zero finder
     r, state = let turnover=turnover, j_E_mai=j_E_mai, y_E_Ea=y_E_Ea, y_E_Eb=y_E_Eb, y_V_E=y_V_E, κsoma=κsoma
         atol = one_r * 1e-10; maxiters = 200
-        findzero(Secant(-2one_r, 1one_r), atol, maxiters) do r
+        _secant_root(-2one_r, 1one_r; atol=atol, maxiters=maxiters) do r
             rate_formula(r, su, rel_reserve, turnover, j_E_mai, y_E_Ea, y_E_Eb, y_V_E, κsoma)
         end
     end
