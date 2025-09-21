@@ -166,7 +166,8 @@ function simulate!(plant, cfg)
     dt = cfg.simulation.Δt
     steps = cfg.simulation.steps
     u = build_initial_state(cfg)
-    du = similar(u)
+    dt_unit = oneunit(dt)
+    du = [zero(ui) / dt_unit for ui in u]
     states = Vector{typeof(u)}(undef, steps + 1)
     states[1] = copy(u)
     times = Vector{typeof(dt)}(undef, steps + 1)
