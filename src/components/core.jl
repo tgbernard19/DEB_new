@@ -52,9 +52,14 @@ Where `o` is the `Organ`, and `u` is the current state parameters
 function maintenance! end
 maintenence!(o, u) = maintenence!(core_pars(o), o, u)
 maintenence!(p::DEBCore, o, u) = begin
-    drain = j_E_mai(p) * tempcorrection(o) * u[:V]
+    rate = j_E_mai(p) * tempcorrection(o)
+    rate = rate isa Unitful.Quantity ? rate : rate * (1/hr)
+    drain = rate * u[:V]
     reserve_drain!(o, :mai, drain)
     maintenance_production!(o, u)
 end
 
-corrected_j_E_mai(o) = j_E_mai(o) * tempcorrection(o)
+corrected_j_E_mai(o) = begin
+    rate = j_E_mai(o) * tempcorrection(o)
+    rate isa Unitful.Quantity ? rate : rate * (1/hr)
+end

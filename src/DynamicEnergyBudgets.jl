@@ -10,10 +10,11 @@ using ConstructionBase,
       DocStringExtensions,
       Setfield,
       Requires,
+      SimpleRoots,
       Unitful
 
 using Unitful: °C, K, Pa, kPa, MPa, J, kJ, W, L, g, kg, cm, m, s, hr, d, mol, mmol, μmol, σ, R
-using Base: @kwdef, tail, signbit
+using Base: @kwdef, tail
 
 export AbstractAssim,
        AbstractNAssim, NH4_NO3Assim, NAssim, ConstantNAssim,
@@ -70,9 +71,6 @@ const DEAD, ALIVE = false, true
     $(TYPEDEF)
     $(DOCSTRING)
     """
-
-const BI_XTOL = 1e-10
-const BI_MAXITER = 100
 
 include("traits.jl")
 include("components/synthesizing_units.jl")

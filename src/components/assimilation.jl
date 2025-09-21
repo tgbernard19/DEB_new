@@ -6,6 +6,9 @@ light_mol_to_watts(light_mol) = light_mol / 4.57e-6
 water_content_to_mols_per_litre(wc) = wc * 55.5 # L/L of water to mol/L
 fraction_per_litre_gas_to_mols(frac) = frac / 22.4
 
+_per_time(x::Unitful.Quantity) = x
+_per_time(x) = x * (1/hr)
+
 
 """
     CarbonVars(; J_L_F, X_C, X_O, soilwaterpotential)
@@ -186,7 +189,7 @@ Return the assimilated C for `Organ` `o` with state variables `u`.
 """
 function photosynthesis end
 
-photosynthesis(f::ConstantCAssim, o, u) = f.c_uptake
+photosynthesis(f::ConstantCAssim, o, u) = _per_time(f.c_uptake)
 
 photosynthesis(f::KooijmanSLAPhotosynthesis, o, u) = begin
     v = vars(o); va = f.vars
@@ -207,7 +210,7 @@ photosynthesis(f::KooijmanSLAPhotosynthesis, o, u) = begin
     j1_co = j1_c + j1_o
     co_l = j1_co/j1_l - j1_co/(j1_l + j1_co)
 
-    j_c_intake / (1 + bound_c + bound_o + co_l)
+    _per_time(j_c_intake / (1 + bound_c + bound_o + co_l))
 end
 
 
@@ -218,7 +221,7 @@ end
 
 Returns constant nitrogen assimilation.
 """
-nitrogen_uptake(f::ConstantNAssim, o, u) = f.n_uptake * tempcorrection(o)
+nitrogen_uptake(f::ConstantNAssim, o, u) = _per_time(f.n_uptake * tempcorrection(o))
 
 """
     nitrogen_uptake(f::KooijmanNH4_NO3Assim, o, u)
@@ -230,8 +233,8 @@ function nitrogen_uptake(f::KooijmanNH4_NO3Assim, o, u)
 
     K1_NH = half_saturation(f.K_NH, f.K_H, va.X_H) # Ammonia saturation. va.X_H was multiplied by ox.scaling. But that makes no sense.
     K1_NO = half_saturation(f.K_NO, f.K_H, va.X_H) # Nitrate saturation
-    J1_NH_ass = half_saturation(f.j_NH_Amax, K1_NH, va.X_NH) * tempcorrection(o) # Arriving ammonia mols.mol⁻¹.s⁻¹
-    J_NO_ass = half_saturation(f.j_NO_Amax, K1_NO, va.X_NO) * tempcorrection(o) # Arriving nitrate mols.mol⁻¹.s⁻¹
+    J1_NH_ass = _per_time(half_saturation(f.j_NH_Amax, K1_NH, va.X_NH) * tempcorrection(o))
+    J_NO_ass = _per_time(half_saturation(f.j_NO_Amax, K1_NO, va.X_NO) * tempcorrection(o))
 
     J_N_ass = J1_NH_ass + f.ρNO * J_NO_ass # Total arriving N flux
     return (J_N_ass, J_NO_ass, J1_NH_ass)
@@ -247,6 +250,6 @@ function nitrogen_uptake(f::NAssim, o, u)
     # Ammonia proportion in soil water
     K1_N = half_saturation(f.K_N, f.K_H, va.X_H)
     # Arriving ammonia in mol mol^-1 s^-1
-    half_saturation(f.j_N_Amax, K1_N, va.X_NO) * tempcorrection(o)
+    _per_time(half_saturation(f.j_N_Amax, K1_N, va.X_NO) * tempcorrection(o))
 end
 

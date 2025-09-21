@@ -17,9 +17,9 @@ abstract type AbstractCatabolismCN <: AbstractCatabolism end
 
 catabolism!(p::AbstractCatabolismCN, o, u) = begin
     v, J = vars(o), flux(o)
-    turnover = (kC(p), kN(p)) .* tempcorrection(v) .* scaling(v)
+    turnover = (kC(p), kN(p)) .* tempcorrection(v) .* scaling(v) .* (1/hr)
     rel_reserve = (u[:C], u[:N]) ./ u[:V]
-    corrected_j_E_mai = j_E_mai(o) * tempcorrection(v) 
+    corrected_j_E_mai = j_E_mai(o) * tempcorrection(v) * (1/hr)
 
     # Calculate the growth rate
     r, alive = calc_rate(su_pars(o), rel_reserve, turnover, corrected_j_E_mai, 
@@ -68,10 +68,10 @@ abstract type AbstractCatabolismCNE <: AbstractCatabolism end
 
 catabolism!(p::AbstractCatabolismCNE, o, u) = begin
     v, J, J1 = vars(o), flux(o), flux1(o)
-    turnover = (kC(p), kN(p), kE(p)) .* tempcorrection(v) .* scaling(v)
+    turnover = (kC(p), kN(p), kE(p)) .* tempcorrection(v) .* scaling(v) .* (1/hr)
     reserve = (u[:C], u[:N], u[:E])
     rel_reserve = reserve ./ u[:V]
-    corrected_j_E_mai = j_E_mai(o) * tempcorrection(o) 
+    corrected_j_E_mai = j_E_mai(o) * tempcorrection(o) * (1/hr)
 
     r, isalive = calc_rate(su_pars(o), rel_reserve, turnover, corrected_j_E_mai(o), y_E_C(o), y_E_N(o), y_V_E(o), κsoma(o), tstep(o))
     set_rate!(o, r)

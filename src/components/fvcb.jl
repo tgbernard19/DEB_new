@@ -150,5 +150,5 @@ photosynthesis(f::KooijmanWaterPotentialPhotosynthesis, o, u) = begin
     j1_co = j1_c + j1_o
     co_l = j1_co/j1_l - j1_co/(j1_l + j1_co)
 
-    j_c_intake / (1 + bound_c + bound_o + co_l)
+    _per_time(j_c_intake / (1 + bound_c + bound_o + co_l))
 end

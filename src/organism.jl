@@ -427,13 +427,9 @@ mutable struct Plant{P,S,R,O,E,ES,D} <: AbstractOrganism
     dead::D
 end
 
-function Plant(params::P, shared::S, records::R, organs::O, environment::E, environment_start::ES, dead::D) where {P,S,R,O,E,ES,D}
-    Plant{P,S,R,O,E,ES,D}(params, shared, records, organs, environment, environment_start, dead)
-end
-
 function Plant(params::P, shared::S, records::R, ::Nothing, environment::E, environment_start::ES, dead::D) where {P,S,R,E,ES,D}
     organs = define_organs(params, shared, records, 0)
-    Plant(params, shared, records, organs, environment, environment_start, dead)
+    Plant{P,S,R,typeof(organs),E,ES,D}(params, shared, records, organs, environment, environment_start, dead)
 end
 
 
@@ -452,7 +448,7 @@ Plant(; states=(:V, :C, :N),
         dead=Ref(false)
       ) = begin
     fluxaxes = states, transformations
-    fluxval = 1.0mol/hr
+    fluxval = 0.0mol/hr
     records = build_records(records, vars, fluxval, fluxaxes, time)
     Plant(params, shared, records, nothing, environment, environment_start, dead)
 end
