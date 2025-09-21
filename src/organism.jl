@@ -1,6 +1,8 @@
 
+using DimensionalData: AbstractDimArray, Dimension, dims, lookup
+
 """
-Abstract supertype for organ parameters. 
+Abstract supertype for organ parameters.
 Extend to add additional components to organ parameters.
 """
 abstract type AbstractParams end
@@ -228,15 +230,56 @@ Records(vars::Vars, fluxval::Number, fluxaxes::Tuple) = begin
     Records{map(typeof, (vars,J))...}(vars, J)
 end
 
+const StateDim = Dim{:state}
+const TransformationDim = Dim{:transformation}
+
+_collect_labels(labels::Tuple) = collect(labels)
+_collect_labels(labels) = labels
+
 build_flux(fluxval, x::Tuple, y::Tuple) = begin
-    dims = (X(Val(x)), Y(Val(y)))
-    A = zeros(typeof(fluxval), length(x), length(y))
+    state_labels = _collect_labels(x)
+    transf_labels = _collect_labels(y)
+    dims = (StateDim(state_labels), TransformationDim(transf_labels))
+    A = fill(zero(fluxval), length(state_labels), length(transf_labels))
     DimArray(A, dims)
 end
 build_flux(fluxval, x::Tuple, y::Tuple, time::AbstractRange) = begin
-    dims = (X(Val(x)), Y(Val(y)), Ti(time))
-    A = zeros(typeof(fluxval), length(x), length(y), length(time))
+    state_labels = _collect_labels(x)
+    transf_labels = _collect_labels(y)
+    dims = (StateDim(state_labels), TransformationDim(transf_labels), Ti(time))
+    A = fill(zero(fluxval), length(state_labels), length(transf_labels), length(time))
     DimArray(A, dims)
+end
+
+_label_data(l) = l
+_label_data(l::DimensionalData.LookupArrays.Lookup) = parent(l)
+
+@inline function _dim_index(dim::Dimension, label)
+    values = _label_data(lookup(dim))
+    values isa AbstractVector || (values = collect(values))
+    idx = findfirst(isequal(label), values)
+    idx === nothing && throw(ArgumentError("Unknown label $(label) for dimension"))
+    idx
+end
+
+function Base.getindex(A::AbstractDimArray{T,2}, state::Symbol, transform::Symbol) where {T}
+    d = dims(A)
+    A[_dim_index(d[1], state), _dim_index(d[2], transform)]
+end
+
+function Base.setindex!(A::AbstractDimArray{T,2}, value, state::Symbol, transform::Symbol) where {T}
+    d = dims(A)
+    A[_dim_index(d[1], state), _dim_index(d[2], transform)] = value
+end
+
+function Base.getindex(A::AbstractDimArray{T,1}, state::Symbol) where {T}
+    d = dims(A)
+    A[_dim_index(d[1], state)]
+end
+
+function Base.setindex!(A::AbstractDimArray{T,1}, value, state::Symbol) where {T}
+    d = dims(A)
+    A[_dim_index(d[1], state)] = value
 end
 
 
