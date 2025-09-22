@@ -24,11 +24,9 @@ julia = "1.8"
 
 
 [extras]
-Microclimate = "e0eb800d-4a9f-54ae-b0f8-217228d9d7c3"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
-Photosynthesis = "5e10c064-2706-53a3-a67d-d473e313a663"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Microclimate", "OrdinaryDiffEq", "Photosynthesis", "Test", "SafeTestsets"]
+test = ["OrdinaryDiffEq", "SafeTestsets", "Test"]

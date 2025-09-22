@@ -1,5 +1,3 @@
 [deps]
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-Microclimate = "e0eb800d-4a9f-54ae-b0f8-217228d9d7c3"
-Photosynthesis = "5e10c064-2706-53a3-a67d-d473e313a663"

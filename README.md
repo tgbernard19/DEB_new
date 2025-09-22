@@ -42,3 +42,24 @@ julia --project=examples examples/tunable_plant.jl
 The script activates the `examples/Project.toml` environment, develops the local
 checkout of `DynamicEnergyBudgets`, and will install the plotting dependency on
 the first run.
+
+## Running the test suite
+
+The package targets Julia 1.8 or newer. To run the tests:
+
+1. start a Julia session in the repository root with `julia --project` and instantiate dependencies via `Pkg.instantiate()`;
+2. call `Pkg.test()`.
+
+The default test run exercises the unit-aware DEB core. Two optional test blocks
+cover the Microclimate and Photosynthesis integrations together with the
+OrdinaryDiffEq interface; they are skipped automatically unless those packages
+are available in the current environment. To enable them, add the optional
+dependencies before running the tests, for example:
+
+```julia
+(DynamicEnergyBudgets) pkg> develop https://github.com/rafaqz/Microclimate.jl
+(DynamicEnergyBudgets) pkg> develop https://github.com/rafaqz/Photosynthesis.jl
+(DynamicEnergyBudgets) pkg> add OrdinaryDiffEq
+```
+
+With the extras installed, re-run `Pkg.test()` to include the integration checks.
