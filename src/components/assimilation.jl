@@ -23,19 +23,6 @@ Variables for carbon assimilation.
 end
 
 
-# ---------------------------------------------------------------------------
-# Backwards compatible aliases
-# ---------------------------------------------------------------------------
-
-const NH4_NO3Assim = KooijmanNH4_NO3Assim
-NH4_NO3Assim(; kwargs...) = KooijmanNH4_NO3Assim(; kwargs...)
-
-const C3Photosynthesis = KooijmanSLAPhotosynthesis
-C3Photosynthesis(; kwargs...) = KooijmanSLAPhotosynthesis(; kwargs...)
-
-const KooijmanPhotosynthesis = KooijmanSLAPhotosynthesis
-KooijmanPhotosynthesis(; kwargs...) = KooijmanSLAPhotosynthesis(; kwargs...)
-
 """
     NitrogenVars(; soilwaterpotential, soilwaterconent, X_NH, X_NO, X_H)
 
@@ -148,6 +135,20 @@ Parameters for nitrogen assimilation.
     K_N::TK = 0.01
     K_H::TL = 10.0
 end
+
+
+# ---------------------------------------------------------------------------
+# Backwards compatible aliases
+# ---------------------------------------------------------------------------
+
+const NH4_NO3Assim = KooijmanNH4_NO3Assim
+NH4_NO3Assim(; kwargs...) = KooijmanNH4_NO3Assim(; kwargs...)
+
+const C3Photosynthesis = KooijmanSLAPhotosynthesis
+C3Photosynthesis(; kwargs...) = KooijmanSLAPhotosynthesis(; kwargs...)
+
+const KooijmanPhotosynthesis = KooijmanSLAPhotosynthesis
+KooijmanPhotosynthesis(; kwargs...) = KooijmanSLAPhotosynthesis(; kwargs...)
 
 
 
