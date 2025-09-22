@@ -91,6 +91,10 @@ const config = (
             K = 1e-6,
         ),
     ),
+    environment = (
+        air_temperature = 298.15u"K",
+        soil_temperature = 295.15u"K",
+    ),
 )
 
 # --- Plant construction ----------------------------------------------------
@@ -151,14 +155,29 @@ function build_time_axis(sim)
     sim.Δt:sim.Δt:sim.Δt * sim.steps
 end
 
-function build_plant(cfg)
-    plant = Plant(
-        params = (build_shoot_params(cfg.shoot), build_root_params(cfg.root)),
-        shared = build_shared_params(cfg.shared),
-        vars = (PlottableVars(), PlottableVars()),
-        time = build_time_axis(cfg.simulation),
+build_environment(cfg) = ManualTemperature(cfg.air_temperature, cfg.soil_temperature)
+
+function build_plottable_vars(shared, temperature)
+    correction = DynamicEnergyBudgets.tempcorr(tempcorr_pars(shared), temperature)
+    PlottableVars(
+        temp = Any[temperature],
+        tempcorrection = Any[correction],
     )
-    return plant
+end
+
+function build_plant(cfg)
+    shared = build_shared_params(cfg.shared)
+    vars = (
+        build_plottable_vars(shared, cfg.environment.air_temperature),
+        build_plottable_vars(shared, cfg.environment.soil_temperature),
+    )
+    Plant(
+        params = (build_shoot_params(cfg.shoot), build_root_params(cfg.root)),
+        shared = shared,
+        vars = vars,
+        time = build_time_axis(cfg.simulation),
+        environment = build_environment(cfg.environment),
+    )
 end
 
 # --- Simulation ------------------------------------------------------------
