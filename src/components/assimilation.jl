@@ -142,13 +142,10 @@ end
 # ---------------------------------------------------------------------------
 
 const NH4_NO3Assim = KooijmanNH4_NO3Assim
-NH4_NO3Assim(; kwargs...) = KooijmanNH4_NO3Assim(; kwargs...)
 
 const C3Photosynthesis = KooijmanSLAPhotosynthesis
-C3Photosynthesis(; kwargs...) = KooijmanSLAPhotosynthesis(; kwargs...)
 
 const KooijmanPhotosynthesis = KooijmanSLAPhotosynthesis
-KooijmanPhotosynthesis(; kwargs...) = KooijmanSLAPhotosynthesis(; kwargs...)
 
 
 

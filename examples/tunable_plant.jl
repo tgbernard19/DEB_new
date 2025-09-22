@@ -158,7 +158,7 @@ end
 build_environment(cfg) = ManualTemperature(cfg.air_temperature, cfg.soil_temperature)
 
 function build_plottable_vars(shared, temperature)
-    correction = DynamicEnergyBudgets.tempcorr(tempcorr_pars(shared), temperature)
+    correction = DynamicEnergyBudgets.tempcorr(shared.tempcorr_pars, temperature)
     PlottableVars(
         temp = Any[temperature],
         tempcorrection = Any[correction],
